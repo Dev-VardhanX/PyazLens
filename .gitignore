@@ -1,0 +1,34 @@
+# Dataset - never commit raw data
+OnionDataSet/
+OnionModel/datasets/
+OnionModel/models/
+
+# Regeneratable training runs
+OnionModel/notebooks/runs/
+OnionModel/results/onion_yolo11n_seg/
+
+# Pretrained base weights + junk notebooks
+OnionModel/notebooks/weights/
+OnionModel/*.pt
+OnionModel/notebooks/*.pt
+OnionModel/notebooks/trash_*.ipynb
+
+# Keep only best.pt from the final run
+OnionModel/results/onion_segmentation_final/weights/*.pt
+!OnionModel/results/onion_segmentation_final/weights/best.pt
+OnionModel/results/onion_segmentation_final/*.png
+OnionModel/results/onion_segmentation_final/*.jpg
+OnionModel/results/onion_segmentation_final/predictions/
+OnionModel/results/test_analysis/*.jpg
+
+# Android build junk
+PyazLens/.gradle/
+PyazLens/.idea/
+PyazLens/build/
+PyazLens/app/build/
+PyazLens/local.properties
+PyazLens/*.iml
+
+# Python
+__pycache__/
+.ipynb_checkpoints/
