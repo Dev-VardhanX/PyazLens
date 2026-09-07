@@ -29,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -57,7 +58,6 @@ fun LanguageScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFFCFAFD))
-            .windowInsetsPadding(WindowInsets.safeDrawing)
             .padding(horizontal = 24.dp, vertical = 32.dp)
     ) {
 
@@ -68,13 +68,13 @@ fun LanguageScreen(
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
-
             Box(
                 modifier = Modifier
                     .size(48.dp)
                     .offset(x = (-8).dp)
                     .clip(RoundedCornerShape(5.dp))
-                    .background(color = Color.White),
+                    .offset(y = (6).dp)
+                    .background(color = Color(0xFFFCFAFD)),
                 contentAlignment = Alignment.Center
             ) {
                 Image(
@@ -82,8 +82,9 @@ fun LanguageScreen(
                         id = R.drawable.pyazlens_logo
                     ),
                     contentDescription = "PyazLens Logo",
-                    modifier = Modifier.size(48.dp)
-                        .clip(RoundedCornerShape(40.dp))
+                    modifier = Modifier
+                        .size(42.dp)
+                        .scale(4f)
                 )
             }
 
@@ -173,7 +174,7 @@ fun LanguageScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(20.dp))
     }
 }
 

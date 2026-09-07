@@ -2,6 +2,7 @@ package com.example.pyazlens.navigation
 
 sealed class Screen(val route: String) {
 
+    data object Splash : Screen("splash")
     data object Language : Screen("language")
 
     data object UserDetails : Screen("user_details")
@@ -10,9 +11,13 @@ sealed class Screen(val route: String) {
 
     data object Home : Screen("home")
 
+    data object Scan : Screen("scan")
+
     data object History : Screen("history")
 
-    data object Stats : Screen("stats")
+    data object Insights : Screen("insights")
 
     data object Settings : Screen("settings")
+
+    data object InspectionResult : Screen("inspection_result")
 }

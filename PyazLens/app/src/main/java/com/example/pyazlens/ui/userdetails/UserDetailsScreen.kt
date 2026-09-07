@@ -83,7 +83,6 @@ fun UserDetailsScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Background)
-            .windowInsetsPadding(WindowInsets.safeDrawing)
             .padding(horizontal = 24.dp, vertical = 32.dp)
     ) {
 
@@ -232,7 +231,7 @@ fun UserDetailsScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(60.dp)
+                .height(48.dp)
                 .clip(RoundedCornerShape(28.dp))
                 .background(Purple)
                 .clickable {
@@ -270,7 +269,7 @@ fun UserDetailsScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(20.dp))
     }
 }
 

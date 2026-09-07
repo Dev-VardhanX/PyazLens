@@ -3,6 +3,7 @@ package com.example.pyazlens.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,7 +14,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PieChart
@@ -23,12 +27,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.pyazlens.navigation.Screen
 import com.example.pyazlens.ui.theme.PyazLensTheme
 
 private val Purple = Color(0xFF511D50)
@@ -48,13 +54,13 @@ fun BottomNavigationBar(
                 WindowInsets.navigationBars
             )
             .padding(
-                horizontal = 12.dp,
-                vertical = 14.dp
+                horizontal = 8.dp,
+                vertical = 8.dp
             ),
         horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.CenterVertically
     ) {
-
+        //Home
         BottomNavItem(
             icon = Icons.Default.Home,
             label = "HOME",
@@ -62,7 +68,7 @@ fun BottomNavigationBar(
             currentRoute = currentRoute,
             onClick = onItemClick
         )
-
+        //History
         BottomNavItem(
             icon = Icons.Default.History,
             label = "HISTORY",
@@ -71,10 +77,41 @@ fun BottomNavigationBar(
             onClick = onItemClick
         )
 
+        // 3. SCAN (Center Prominent Circular Button)
+        Column(
+            modifier = Modifier.clickable { onItemClick(Screen.Scan.route) },
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .offset(y = (-12).dp)
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(Purple),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AddAPhoto,
+                    contentDescription = "Scan",
+                    tint = Color.White,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+
+            Text(
+                text = "Scan",
+                color = if (currentRoute == Screen.Scan.route) Purple else Color(0xFF9CA0A8),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.offset(y = (-8).dp)
+            )
+        }
+
+        // 4. INSIGHTS
         BottomNavItem(
             icon = Icons.Default.PieChart,
-            label = "STATS",
-            route = "stats",
+            label = "Insight",
+            route = Screen.Insights.route,
             currentRoute = currentRoute,
             onClick = onItemClick
         )
@@ -112,7 +149,7 @@ private fun BottomNavItem(
             imageVector = icon,
             contentDescription = label,
             tint = if (selected) Purple else Gray,
-            modifier = Modifier.size(30.dp)
+            modifier = Modifier.size(26.dp)
         )
 
         Spacer(
@@ -122,7 +159,7 @@ private fun BottomNavItem(
         Text(
             text = label,
             color = if (selected) Purple else Gray,
-            fontSize = 8.sp,
+            fontSize = 9.sp,
             fontWeight = FontWeight.Bold
         )
     }

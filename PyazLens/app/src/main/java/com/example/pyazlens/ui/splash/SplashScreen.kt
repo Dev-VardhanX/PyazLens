@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -27,10 +28,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.pyazlens.R
 import com.example.pyazlens.ui.theme.PyazLensTheme
+import kotlinx.coroutines.delay
 import kotlin.math.round
 
 @Composable
-fun SplashScreen() {
+fun SplashScreen(onSplashFinished: () -> Unit) {
+
+    LaunchedEffect(Unit) {
+        delay(2500)
+        onSplashFinished()
+    }
 
     Column(
         modifier = Modifier
@@ -45,7 +52,7 @@ fun SplashScreen() {
 
         Image(
             painter = painterResource(
-                id = R.drawable.pyazlens_logo
+                id = R.drawable.pyazlenslogo
             ),
             contentDescription = "PyazLens Logo",
             modifier = Modifier.size(180.dp)
@@ -108,6 +115,6 @@ fun SplashScreen() {
 @Composable
 fun SplashScreenPreview() {
     PyazLensTheme {
-        SplashScreen()
+        SplashScreen({})
     }
 }

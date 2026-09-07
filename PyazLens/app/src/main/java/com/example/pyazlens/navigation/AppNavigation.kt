@@ -7,6 +7,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.pyazlens.ui.home.HomeScreen
 import com.example.pyazlens.ui.language.LanguageScreen
 import com.example.pyazlens.ui.main.MainScaffold
+import com.example.pyazlens.ui.splash.SplashScreen
 import com.example.pyazlens.ui.userdetails.UserDetailsScreen
 
 @Composable
@@ -16,8 +17,30 @@ fun AppNavigation() {
 
     NavHost(
         navController = navController,
-        startDestination = Screen.Language.route
+        startDestination = Screen.Splash.route
     ) {
+
+        // -------------------------------
+        // SPLASH
+        // -------------------------------
+
+        composable(Screen.Splash.route) {
+
+            SplashScreen(
+                onSplashFinished = {
+
+                    navController.navigate(
+                        Screen.Language.route
+                    ) {
+                        popUpTo(
+                            Screen.Splash.route
+                        ) {
+                            inclusive = true
+                        }
+                    }
+                }
+            )
+        }
 
         // LANGUAGE
 
