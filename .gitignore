@@ -36,6 +36,8 @@ __pycache__/
 #backend
 backend/.env
 backend/venv/
+backend/__pycache__/
+backend/*.pyc
 
 #OnionModel2
 OnionModel2/
