@@ -1,5 +1,6 @@
 package com.example.pyazlens.ui.settings
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -36,17 +37,23 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.pyazlens.data.network.RetrofitClient
 import com.example.pyazlens.ui.theme.PyazLensTheme
+import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 
 private val Purple = Color(0xFF511D50)
 private val Background = Color(0xFFFCFAFD)
@@ -55,23 +62,20 @@ private val Gray = Color(0xFF8D8790)
 private val BorderGray = Color(0xFFEAE6EB)
 
 @Composable
-fun SettingsScreen() {
+fun SettingsScreen(
+    userName: String,
+    userPhone: String,
+    userAddress: String,
+    userProfileId: Long,
+    onProfileUpdated: (
+        String,
+        String,
+        String
+    ) -> Unit
+) {
 
-    // --------------------------------------------------
-    // Dummy user data
-    // --------------------------------------------------
-
-    var userName by remember {
-        mutableStateOf("Farmer User")
-    }
-
-    var phone by remember {
-        mutableStateOf("9876543210")
-    }
-
-    var location by remember {
-        mutableStateOf("Nashik, Maharashtra")
-    }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     var notificationsEnabled by remember {
         mutableStateOf(true)
@@ -81,7 +85,6 @@ fun SettingsScreen() {
         mutableStateOf("English")
     }
 
-    // Dialog states
     var showProfileDialog by remember {
         mutableStateOf(false)
     }
@@ -90,7 +93,11 @@ fun SettingsScreen() {
         mutableStateOf(false)
     }
 
-    var showAboutDialog by remember {
+    var showAiDialog by remember {
+        mutableStateOf(false)
+    }
+
+    var showPrivacyDialog by remember {
         mutableStateOf(false)
     }
 
@@ -105,7 +112,7 @@ fun SettingsScreen() {
     ) {
 
         // --------------------------------------------------
-        // Header
+        // HEADER
         // --------------------------------------------------
 
         item {
@@ -122,9 +129,8 @@ fun SettingsScreen() {
             )
         }
 
-
         // --------------------------------------------------
-        // User Profile
+        // PROFILE
         // --------------------------------------------------
 
         item {
@@ -132,9 +138,7 @@ fun SettingsScreen() {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(
-                        RoundedCornerShape(20.dp)
-                    )
+                    .clip(RoundedCornerShape(20.dp))
                     .background(Color.White)
                     .border(
                         1.dp,
@@ -146,87 +150,85 @@ fun SettingsScreen() {
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment =
-                        Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
 
-                    // Profile icon
                     Box(
                         modifier = Modifier
                             .size(54.dp)
-                            .clip(
-                                RoundedCornerShape(16.dp)
-                            )
+                            .clip(RoundedCornerShape(16.dp))
                             .background(
                                 Purple.copy(alpha = 0.1f)
                             ),
-
-                        contentAlignment =
-                            Alignment.Center
+                        contentAlignment = Alignment.Center
                     ) {
 
                         Icon(
                             imageVector =
                                 Icons.Default.Person,
-
                             contentDescription =
                                 "Profile",
-
                             tint = Purple,
-
                             modifier =
                                 Modifier.size(28.dp)
                         )
                     }
 
-
                     Spacer(
                         modifier = Modifier.width(14.dp)
                     )
 
-
-                    // User information
                     Column(
-                        modifier =
-                            Modifier.weight(1f)
+                        modifier = Modifier.weight(1f)
                     ) {
 
                         Text(
-                            text = userName,
+                            text = userName.ifBlank {
+                                "User"
+                            },
                             color = Purple,
                             fontSize = 18.sp,
-                            fontWeight =
-                                FontWeight.Bold
+                            fontWeight = FontWeight.Bold
                         )
 
-                        Spacer(
-                            modifier =
-                                Modifier.height(2.dp)
-                        )
+                        if (userPhone.isNotBlank()) {
 
-                        Text(
-                            text = phone,
-                            color = Gray,
-                            fontSize = 13.sp
-                        )
+                            Text(
+                                text = userPhone,
+                                color = Gray,
+                                fontSize = 13.sp
+                            )
 
-                        Text(
-                            text = location,
-                            color = Gray,
-                            fontSize = 12.sp
-                        )
+                            Text(
+                                text = "Phone verified",
+                                color = Green,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                        } else {
+
+                            Text(
+                                text = "Phone number not added",
+                                color = Gray,
+                                fontSize = 13.sp
+                            )
+                        }
+
+                        if (userAddress.isNotBlank()) {
+
+                            Text(
+                                text = userAddress,
+                                color = Gray,
+                                fontSize = 12.sp
+                            )
+                        }
                     }
 
-
-                    // Edit button
                     Box(
                         modifier = Modifier
-                            .clip(
-                                RoundedCornerShape(12.dp)
-                            )
-                            .background(
-                                Color(0xFFF4ECE8)
-                            )
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFFF4ECE8))
                             .clickable {
                                 showProfileDialog = true
                             }
@@ -236,12 +238,9 @@ fun SettingsScreen() {
                         Icon(
                             imageVector =
                                 Icons.Default.Edit,
-
                             contentDescription =
                                 "Edit Profile",
-
                             tint = Purple,
-
                             modifier =
                                 Modifier.size(20.dp)
                         )
@@ -250,9 +249,8 @@ fun SettingsScreen() {
             }
         }
 
-
         // --------------------------------------------------
-        // Preferences
+        // PREFERENCES
         // --------------------------------------------------
 
         item {
@@ -260,9 +258,7 @@ fun SettingsScreen() {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(
-                        RoundedCornerShape(20.dp)
-                    )
+                    .clip(RoundedCornerShape(20.dp))
                     .background(Color.White)
                     .border(
                         1.dp,
@@ -284,15 +280,10 @@ fun SettingsScreen() {
                         fontWeight = FontWeight.Bold
                     )
 
-
-                    // Language
                     Row(
-                        modifier =
-                            Modifier.fillMaxWidth(),
-
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement =
                             Arrangement.SpaceBetween,
-
                         verticalAlignment =
                             Alignment.CenterVertically
                     ) {
@@ -305,12 +296,9 @@ fun SettingsScreen() {
                             Icon(
                                 imageVector =
                                     Icons.Default.Language,
-
                                 contentDescription =
                                     "Language",
-
                                 tint = Purple,
-
                                 modifier =
                                     Modifier.size(22.dp)
                             )
@@ -329,39 +317,30 @@ fun SettingsScreen() {
                             )
                         }
 
-
                         Text(
                             text = selectedLanguage,
                             color = Green,
                             fontSize = 14.sp,
-                            fontWeight =
-                                FontWeight.Bold,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.clickable {
 
-                            modifier =
-                                Modifier.clickable {
-
-                                    selectedLanguage =
-                                        if (
-                                            selectedLanguage ==
-                                            "English"
-                                        ) {
-                                            "Hindi"
-                                        } else {
-                                            "English"
-                                        }
-                                }
+                                selectedLanguage =
+                                    if (
+                                        selectedLanguage ==
+                                        "English"
+                                    ) {
+                                        "Hindi"
+                                    } else {
+                                        "English"
+                                    }
+                            }
                         )
                     }
 
-
-                    // Notifications
                     Row(
-                        modifier =
-                            Modifier.fillMaxWidth(),
-
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement =
                             Arrangement.SpaceBetween,
-
                         verticalAlignment =
                             Alignment.CenterVertically
                     ) {
@@ -374,12 +353,9 @@ fun SettingsScreen() {
                             Icon(
                                 imageVector =
                                     Icons.Default.Notifications,
-
                                 contentDescription =
                                     "Notifications",
-
                                 tint = Purple,
-
                                 modifier =
                                     Modifier.size(22.dp)
                             )
@@ -392,7 +368,6 @@ fun SettingsScreen() {
                             Text(
                                 text =
                                     "Quality Report Notifications",
-
                                 color = Purple,
                                 fontSize = 15.sp,
                                 fontWeight =
@@ -400,21 +375,16 @@ fun SettingsScreen() {
                             )
                         }
 
-
                         Switch(
                             checked =
                                 notificationsEnabled,
-
                             onCheckedChange = {
-                                notificationsEnabled =
-                                    it
+                                notificationsEnabled = it
                             },
-
                             colors =
                                 SwitchDefaults.colors(
                                     checkedThumbColor =
                                         Color.White,
-
                                     checkedTrackColor =
                                         Purple
                                 )
@@ -424,9 +394,8 @@ fun SettingsScreen() {
             }
         }
 
-
         // --------------------------------------------------
-        // AI & Help
+        // AI & HELP
         // --------------------------------------------------
 
         item {
@@ -434,9 +403,7 @@ fun SettingsScreen() {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(
-                        RoundedCornerShape(20.dp)
-                    )
+                    .clip(RoundedCornerShape(20.dp))
                     .background(Color.White)
                     .border(
                         1.dp,
@@ -458,107 +425,99 @@ fun SettingsScreen() {
                         fontWeight = FontWeight.Bold
                     )
 
-
                     SettingsRowItem(
                         icon = Icons.Default.Memory,
                         label = "AI Engine Information",
                         subLabel =
-                            "PyazLens AI Detector",
-
+                            "PyazLens AI • Onion Quality Detection",
                         onClick = {
-                            showAboutDialog = true
+                            showAiDialog = true
                         }
                     )
-
 
                     SettingsRowItem(
                         icon =
                             Icons.Default.HelpOutline,
-
                         label =
                             "Onion Inspection Guide",
-
                         subLabel =
                             "Tips for better AI scans",
-
                         onClick = {
                             showGuideDialog = true
                         }
                     )
 
-
                     SettingsRowItem(
                         icon =
                             Icons.Default.PrivacyTip,
-
                         label =
                             "Privacy & Data Security",
-
                         subLabel =
                             "Your inspection data",
-
                         onClick = {
-                            showAboutDialog = true
+                            showPrivacyDialog = true
                         }
                     )
                 }
             }
         }
 
-
         // --------------------------------------------------
-        // Footer
+        // FOOTER
         // --------------------------------------------------
 
         item {
 
             Column(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 12.dp),
-
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
                 horizontalAlignment =
                     Alignment.CenterHorizontally
             ) {
 
                 Text(
-                    text =
-                        "PyazLens v1.0 • SIH26031",
-
+                    text = "PyazLens v1.0 • SIH26031",
                     color = Gray,
                     fontSize = 12.sp,
-                    fontWeight =
-                        FontWeight.Medium
+                    fontWeight = FontWeight.Medium
                 )
 
                 Spacer(
-                    modifier =
-                        Modifier.height(2.dp)
+                    modifier = Modifier.height(2.dp)
                 )
 
                 Text(
                     text =
                         "AI-Powered Onion Quality Assessment App",
-
                     color = Gray,
                     fontSize = 11.sp
                 )
             }
 
             Spacer(
-                modifier =
-                    Modifier.height(16.dp)
+                modifier = Modifier.height(16.dp)
             )
         }
     }
 
-
-    // --------------------------------------------------
-    // Edit Profile Dialog
-    // --------------------------------------------------
+    // ======================================================
+    // EDIT PROFILE
+    // ======================================================
 
     if (showProfileDialog) {
+
+        var editedName by remember {
+            mutableStateOf(userName)
+        }
+
+        var editedPhone by remember {
+            mutableStateOf(userPhone)
+        }
+
+        var editedAddress by remember {
+            mutableStateOf(userAddress)
+        }
 
         AlertDialog(
 
@@ -578,9 +537,9 @@ fun SettingsScreen() {
                 ) {
 
                     OutlinedTextField(
-                        value = userName,
+                        value = editedName,
                         onValueChange = {
-                            userName = it
+                            editedName = it
                         },
                         label = {
                             Text("Full Name")
@@ -589,20 +548,31 @@ fun SettingsScreen() {
                     )
 
                     OutlinedTextField(
-                        value = phone,
+                        value = editedPhone,
                         onValueChange = {
-                            phone = it
+                            editedPhone = it
                         },
                         label = {
                             Text("Phone Number")
                         },
-                        singleLine = true
+                        singleLine = true,
+                        enabled = userPhone.isBlank()
                     )
 
+                    if (userPhone.isNotBlank()) {
+
+                        Text(
+                            text =
+                                "Verified phone numbers cannot be changed here.",
+                            color = Gray,
+                            fontSize = 11.sp
+                        )
+                    }
+
                     OutlinedTextField(
-                        value = location,
+                        value = editedAddress,
                         onValueChange = {
-                            location = it
+                            editedAddress = it
                         },
                         label = {
                             Text("Location / District")
@@ -616,15 +586,99 @@ fun SettingsScreen() {
 
                 TextButton(
                     onClick = {
-                        showProfileDialog = false
+
+                        if (editedName.isBlank()) {
+
+                            Toast.makeText(
+                                context,
+                                "Name is required",
+                                Toast.LENGTH_SHORT
+                            ).show()
+
+                            return@TextButton
+                        }
+
+                        scope.launch {
+
+                            try {
+
+                                val nameRequest =
+                                    editedName
+                                        .trim()
+                                        .toRequestBody(
+                                            "text/plain".toMediaType()
+                                        )
+
+                                val phoneRequest =
+                                    editedPhone
+                                        .trim()
+                                        .takeIf {
+                                            it.isNotBlank()
+                                        }
+                                        ?.toRequestBody(
+                                            "text/plain".toMediaType()
+                                        )
+
+                                val addressRequest =
+                                    editedAddress
+                                        .trim()
+                                        .takeIf {
+                                            it.isNotBlank()
+                                        }
+                                        ?.toRequestBody(
+                                            "text/plain".toMediaType()
+                                        )
+
+                                val response =
+                                    RetrofitClient.api
+                                        .updateUserProfile(
+                                            userProfileId,
+                                            nameRequest,
+                                            phoneRequest,
+                                            addressRequest
+                                        )
+
+                                if (response.success) {
+
+                                    onProfileUpdated(
+                                        response.name,
+                                        response.phone ?: "",
+                                        response.address ?: ""
+                                    )
+
+                                    showProfileDialog = false
+
+                                    Toast.makeText(
+                                        context,
+                                        "Profile updated",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+
+                                } else {
+
+                                    Toast.makeText(
+                                        context,
+                                        "Unable to update profile",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+
+                            } catch (e: Exception) {
+
+                                Toast.makeText(
+                                    context,
+                                    "Update failed: ${e.message}",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        }
                     }
                 ) {
 
                     Text(
                         text = "Save",
                         color = Purple,
-                        fontWeight =
-                            FontWeight.Bold
+                        fontWeight = FontWeight.Bold
                     )
                 }
             },
@@ -636,17 +690,15 @@ fun SettingsScreen() {
                         showProfileDialog = false
                     }
                 ) {
-
                     Text("Cancel")
                 }
             }
         )
     }
 
-
-    // --------------------------------------------------
-    // Inspection Guide Dialog
-    // --------------------------------------------------
+    // ======================================================
+    // GUIDE
+    // ======================================================
 
     if (showGuideDialog) {
 
@@ -667,7 +719,7 @@ fun SettingsScreen() {
                             "2. Hold your phone above the onions.\n\n" +
                             "3. Make sure all onions are clearly visible.\n\n" +
                             "4. Capture the image or upload one from your gallery.\n\n" +
-                            "5. PyazLens will analyze the onion quality."
+                            "5. PyazLens will analyze onion size, defects and quality grade."
                 )
             },
 
@@ -682,25 +734,23 @@ fun SettingsScreen() {
                     Text(
                         text = "Got it!",
                         color = Purple,
-                        fontWeight =
-                            FontWeight.Bold
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
         )
     }
 
+    // ======================================================
+    // AI INFO
+    // ======================================================
 
-    // --------------------------------------------------
-    // AI Information Dialog
-    // --------------------------------------------------
-
-    if (showAboutDialog) {
+    if (showAiDialog) {
 
         AlertDialog(
 
             onDismissRequest = {
-                showAboutDialog = false
+                showAiDialog = false
             },
 
             title = {
@@ -710,11 +760,12 @@ fun SettingsScreen() {
             text = {
 
                 Text(
-                    "PyazLens uses AI-based computer vision " +
-                            "to analyze onion images and identify " +
-                            "visible quality issues.\n\n" +
-                            "AI integration will be connected " +
-                            "after the UI development is complete."
+                    "PyazLens uses computer vision and AI models " +
+                            "to detect onions, estimate their size, " +
+                            "identify visible defects and assign " +
+                            "a quality grade.\n\n" +
+                            "The analysis uses the PyazLens backend " +
+                            "and trained onion-quality models."
                 )
             },
 
@@ -722,26 +773,65 @@ fun SettingsScreen() {
 
                 TextButton(
                     onClick = {
-                        showAboutDialog = false
+                        showAiDialog = false
                     }
                 ) {
 
                     Text(
                         text = "OK",
                         color = Purple,
-                        fontWeight =
-                            FontWeight.Bold
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        )
+    }
+
+    // ======================================================
+    // PRIVACY
+    // ======================================================
+
+    if (showPrivacyDialog) {
+
+        AlertDialog(
+
+            onDismissRequest = {
+                showPrivacyDialog = false
+            },
+
+            title = {
+                Text("Privacy & Data Security")
+            },
+
+            text = {
+
+                Text(
+                    "Your inspection records are associated with " +
+                            "your PyazLens user profile.\n\n" +
+                            "Inspection images and analysis results " +
+                            "are stored by the PyazLens backend for " +
+                            "your inspection history."
+                )
+            },
+
+            confirmButton = {
+
+                TextButton(
+                    onClick = {
+                        showPrivacyDialog = false
+                    }
+                ) {
+
+                    Text(
+                        text = "OK",
+                        color = Purple,
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
         )
     }
 }
-
-
-// ----------------------------------------------------
-// Reusable Settings Row
-// ----------------------------------------------------
 
 @Composable
 private fun SettingsRowItem(
@@ -757,10 +847,8 @@ private fun SettingsRowItem(
             .clickable {
                 onClick()
             },
-
         horizontalArrangement =
             Arrangement.SpaceBetween,
-
         verticalAlignment =
             Alignment.CenterVertically
     ) {
@@ -772,18 +860,13 @@ private fun SettingsRowItem(
 
             Icon(
                 imageVector = icon,
-
                 contentDescription = null,
-
                 tint = Purple,
-
-                modifier =
-                    Modifier.size(22.dp)
+                modifier = Modifier.size(22.dp)
             )
 
             Spacer(
-                modifier =
-                    Modifier.width(12.dp)
+                modifier = Modifier.width(12.dp)
             )
 
             Column {
@@ -804,13 +887,10 @@ private fun SettingsRowItem(
             }
         }
 
-
         Icon(
             imageVector =
                 Icons.Default.ChevronRight,
-
             contentDescription = null,
-
             tint = Gray
         )
     }
@@ -819,7 +899,15 @@ private fun SettingsRowItem(
 @Preview(showBackground = true)
 @Composable
 fun SettingsScreenPreview() {
+
     PyazLensTheme {
-        SettingsScreen()
+
+        SettingsScreen(
+            userName = "Dev",
+            userPhone = "9876543210",
+            userAddress = "Hapur",
+            userProfileId = 5L,
+            onProfileUpdated = { _, _, _ -> }
+        )
     }
 }

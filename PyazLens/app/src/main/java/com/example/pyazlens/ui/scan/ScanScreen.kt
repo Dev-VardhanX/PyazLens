@@ -1,16 +1,13 @@
 package com.example.pyazlens.ui.scan
 
 import android.Manifest
-import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.view.ViewGroup
-
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
@@ -18,7 +15,6 @@ import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview as CameraPreview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
-
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -64,21 +60,26 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-
 import androidx.core.content.ContextCompat
-
+import com.example.pyazlens.data.network.AnalyzeResponse
+import com.example.pyazlens.data.network.RetrofitClient
+import com.example.pyazlens.data.network.uriToMultipart
 import com.example.pyazlens.ui.theme.PyazLensTheme
-
-import kotlinx.coroutines.delay
-
-import java.io.File
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
+import okhttp3.RequestBody.Companion.toRequestBody
 
 private val Purple = Color(0xFF511D50)
 private val Green = Color(0xFF73C943)
 
 @Composable
 fun ScanScreen(
-    initialImageUri: Uri? = null
+    initialImageUri: Uri? = null,
+    userName: String,
+    userPhone: String,
+    userAddress: String,
+    userProfileId: Long,
+    onAnalysisComplete: (AnalyzeResponse) -> Unit
 ) {
 
     val context = LocalContext.current
@@ -112,6 +113,11 @@ fun ScanScreen(
         mutableStateOf<Bitmap?>(null)
     }
 
+    var galleryImageUri by remember {
+        mutableStateOf<Uri?>(null)
+    }
+
+    // Load image coming from Home → Upload
     LaunchedEffect(initialImageUri) {
 
         if (initialImageUri != null) {
@@ -126,7 +132,10 @@ fun ScanScreen(
                         }
 
                 if (bitmap != null) {
+
                     galleryBitmap = bitmap
+                    galleryImageUri = initialImageUri
+                    capturedBitmap = null
                 }
 
             } catch (e: Exception) {
@@ -150,6 +159,10 @@ fun ScanScreen(
 
     var isAnalyzing by remember {
         mutableStateOf(false)
+    }
+
+    var analysisError by remember {
+        mutableStateOf<String?>(null)
     }
 
     // ------------------------------------------------
@@ -207,7 +220,9 @@ fun ScanScreen(
                     if (bitmap != null) {
 
                         galleryBitmap = bitmap
+                        galleryImageUri = uri
                         capturedBitmap = null
+                        analysisError = null
                     }
 
                 } catch (e: Exception) {
@@ -233,12 +248,10 @@ fun ScanScreen(
                 val cameraProvider =
                     cameraProviderFuture.get()
 
-                // Preview
                 val preview =
                     CameraPreview.Builder()
                         .build()
 
-                // Image capture
                 val newImageCapture =
                     ImageCapture.Builder()
                         .setCaptureMode(
@@ -246,14 +259,11 @@ fun ScanScreen(
                         )
                         .build()
 
-                // Back camera
                 val cameraSelector =
                     CameraSelector.DEFAULT_BACK_CAMERA
 
-                // Remove previous camera bindings
                 cameraProvider.unbindAll()
 
-                // Bind BOTH preview and image capture
                 val newCamera =
                     cameraProvider.bindToLifecycle(
                         lifecycleOwner,
@@ -262,16 +272,12 @@ fun ScanScreen(
                         newImageCapture
                     )
 
-                // Connect preview to PreviewView
                 preview.setSurfaceProvider(
                     previewView.surfaceProvider
                 )
 
-                imageCapture =
-                    newImageCapture
-
-                camera =
-                    newCamera
+                imageCapture = newImageCapture
+                camera = newCamera
 
             } catch (e: Exception) {
 
@@ -291,7 +297,7 @@ fun ScanScreen(
             imageCapture ?: return
 
         val photoFile =
-            File(
+            java.io.File(
                 context.cacheDir,
                 "pyazlens_${System.currentTimeMillis()}.jpg"
             )
@@ -305,12 +311,10 @@ fun ScanScreen(
             outputOptions,
             ContextCompat.getMainExecutor(context),
 
-            object :
-                ImageCapture.OnImageSavedCallback {
+            object : ImageCapture.OnImageSavedCallback {
 
                 override fun onImageSaved(
-                    outputFileResults:
-                    ImageCapture.OutputFileResults
+                    outputFileResults: ImageCapture.OutputFileResults
                 ) {
 
                     try {
@@ -322,11 +326,10 @@ fun ScanScreen(
 
                         if (bitmap != null) {
 
-                            capturedBitmap =
-                                bitmap
-
-                            galleryBitmap =
-                                null
+                            capturedBitmap = bitmap
+                            galleryBitmap = null
+                            galleryImageUri = null
+                            analysisError = null
                         }
 
                     } catch (e: Exception) {
@@ -336,14 +339,153 @@ fun ScanScreen(
                 }
 
                 override fun onError(
-                    exception:
-                    ImageCaptureException
+                    exception: ImageCaptureException
                 ) {
 
                     exception.printStackTrace()
+
+                    analysisError =
+                        "Unable to capture image."
                 }
             }
         )
+    }
+
+    // ------------------------------------------------
+    // Analyze image
+    // ------------------------------------------------
+
+    fun analyzeImage() {
+
+        val imageUri: Uri? =
+
+            galleryImageUri
+                ?: try {
+
+                    if (capturedBitmap == null) {
+                        null
+                    } else {
+
+                        val file =
+                            java.io.File(
+                                context.cacheDir,
+                                "pyazlens_upload_${System.currentTimeMillis()}.jpg"
+                            )
+
+                        file.outputStream().use { outputStream ->
+
+                            capturedBitmap?.compress(
+                                Bitmap.CompressFormat.JPEG,
+                                90,
+                                outputStream
+                            )
+                        }
+
+                        Uri.fromFile(file)
+                    }
+
+                } catch (e: Exception) {
+
+                    e.printStackTrace()
+                    null
+                }
+
+        if (imageUri == null) {
+
+            analysisError =
+                "Unable to prepare image."
+
+            return
+        }
+
+        isAnalyzing = true
+        analysisError = null
+
+        MainScope().launch {
+
+            try {
+
+                // Convert selected/captured image to multipart
+                val filePart =
+                    uriToMultipart(
+                        context,
+                        imageUri
+                    )
+
+                // ------------------------------------------------
+                // ACTUAL USER DETAILS
+                // ------------------------------------------------
+
+                val name =
+                    userName
+                        .trim()
+                        .toRequestBody()
+
+                val phone =
+                    userPhone
+                        .trim()
+                        .takeIf {
+                            it.isNotBlank()
+                        }
+                        ?.toRequestBody()
+
+                val address =
+                    userAddress
+                        .trim()
+                        .takeIf {
+                            it.isNotBlank()
+                        }
+                        ?.toRequestBody()
+
+                // ------------------------------------------------
+                // USER PROFILE ID
+                // ------------------------------------------------
+
+                val profileId =
+                    userProfileId
+                        .toString()
+                        .toRequestBody()
+
+                // ------------------------------------------------
+                // API CALL
+                // ------------------------------------------------
+
+                val response =
+                    RetrofitClient.api.analyzeImage(
+
+                        file = filePart,
+
+                        name = name,
+
+                        phone = phone,
+
+                        address = address,
+
+                        userProfileId = profileId
+                    )
+
+                isAnalyzing = false
+
+                if (response.success) {
+
+                    onAnalysisComplete(response)
+
+                } else {
+
+                    analysisError =
+                        "AI analysis failed."
+                }
+
+            } catch (e: Exception) {
+
+                e.printStackTrace()
+
+                isAnalyzing = false
+
+                analysisError =
+                    "Connection failed: ${e.message}"
+            }
+        }
     }
 
     // ------------------------------------------------
@@ -582,11 +724,13 @@ fun ScanScreen(
                         )
                         .clickable {
 
-                            capturedBitmap =
-                                null
+                            if (!isAnalyzing) {
 
-                            galleryBitmap =
-                                null
+                                capturedBitmap = null
+                                galleryBitmap = null
+                                galleryImageUri = null
+                                analysisError = null
+                            }
                         },
 
                 contentAlignment =
@@ -605,6 +749,53 @@ fun ScanScreen(
 
                     modifier =
                         Modifier.size(24.dp)
+                )
+            }
+        }
+
+        // =================================================
+        // ERROR MESSAGE
+        // =================================================
+
+        if (
+            analysisError != null &&
+            !isAnalyzing
+        ) {
+
+            Box(
+                modifier =
+                    Modifier
+                        .align(Alignment.Center)
+                        .padding(
+                            horizontal = 32.dp
+                        )
+                        .clip(
+                            RoundedCornerShape(16.dp)
+                        )
+                        .background(
+                            Color.Black.copy(
+                                alpha = 0.85f
+                            )
+                        )
+                        .padding(20.dp),
+
+                contentAlignment =
+                    Alignment.Center
+            ) {
+
+                Text(
+                    text =
+                        analysisError!!,
+
+                    color = Color.White,
+
+                    fontSize = 15.sp,
+
+                    fontWeight =
+                        FontWeight.Medium,
+
+                    textAlign =
+                        TextAlign.Center
                 )
             }
         }
@@ -631,7 +822,10 @@ fun ScanScreen(
                 Alignment.CenterVertically
         ) {
 
+            // ------------------------------------------------
             // Gallery
+            // ------------------------------------------------
+
             Box(
                 modifier =
                     Modifier
@@ -644,9 +838,12 @@ fun ScanScreen(
                         )
                         .clickable {
 
-                            galleryLauncher.launch(
-                                "image/*"
-                            )
+                            if (!isAnalyzing) {
+
+                                galleryLauncher.launch(
+                                    "image/*"
+                                )
+                            }
                         },
 
                 contentAlignment =
@@ -668,7 +865,10 @@ fun ScanScreen(
                 )
             }
 
+            // ------------------------------------------------
             // Capture / Analyze
+            // ------------------------------------------------
+
             Box(
                 modifier =
                     Modifier
@@ -677,14 +877,17 @@ fun ScanScreen(
                         .background(Color.White)
                         .clickable {
 
+                            if (isAnalyzing) {
+                                return@clickable
+                            }
+
                             if (currentBitmap == null) {
 
                                 capturePhoto()
 
                             } else {
 
-                                isAnalyzing =
-                                    true
+                                analyzeImage()
                             }
                         }
                         .padding(6.dp),
@@ -723,7 +926,10 @@ fun ScanScreen(
                 }
             }
 
+            // ------------------------------------------------
             // Flash
+            // ------------------------------------------------
+
             Box(
                 modifier =
                     Modifier
@@ -736,14 +942,17 @@ fun ScanScreen(
                         )
                         .clickable {
 
-                            flashEnabled =
-                                !flashEnabled
+                            if (!isAnalyzing) {
 
-                            camera
-                                ?.cameraControl
-                                ?.enableTorch(
-                                    flashEnabled
-                                )
+                                flashEnabled =
+                                    !flashEnabled
+
+                                camera
+                                    ?.cameraControl
+                                    ?.enableTorch(
+                                        flashEnabled
+                                    )
+                            }
                         },
 
                 contentAlignment =
@@ -774,14 +983,6 @@ fun ScanScreen(
         // =================================================
 
         if (isAnalyzing) {
-
-            LaunchedEffect(Unit) {
-
-                delay(2000)
-
-                isAnalyzing =
-                    false
-            }
 
             Box(
                 modifier =
@@ -836,7 +1037,7 @@ fun ScanScreen(
 
                     Text(
                         text =
-                            "AI inspection will be connected later.",
+                            "AI is inspecting your image",
 
                         color =
                             Color(0xFFD9D0DB),
@@ -862,6 +1063,14 @@ fun ScanScreen(
 fun ScanScreenPreview() {
 
     PyazLensTheme {
-        ScanScreen()
+
+        ScanScreen(
+            initialImageUri = null,
+            userName = "Test User",
+            userPhone = "",
+            userAddress = "",
+            userProfileId = 1L,
+            onAnalysisComplete = {}
+        )
     }
 }

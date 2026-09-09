@@ -1,4 +1,7 @@
 import os
+import hashlib
+import secrets
+from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 from supabase import create_client, Client
 import uuid
@@ -183,3 +186,149 @@ def update_inspection_image_url(inspection_id, image_path):
     )
 
     return response.data[0]
+
+def delete_inspection_record(inspection_id):
+    # First check that the inspection exists
+    inspection_response = (
+        supabase
+        .table("inspections")
+        .select("id")
+        .eq("id", inspection_id)
+        .limit(1)
+        .execute()
+    )
+
+    if not inspection_response.data:
+        return False
+
+    # Delete the inspection.
+    # Related detected_onions and onion_defects will be
+    # deleted automatically because of ON DELETE CASCADE.
+    (
+        supabase
+        .table("inspections")
+        .delete()
+        .eq("id", inspection_id)
+        .execute()
+    )
+
+    return True
+
+# ============================================================
+# DEVELOPMENT OTP STORAGE
+# ============================================================
+
+otp_store = {}
+verification_store = {}
+
+
+def generate_otp(phone):
+    import random
+
+    otp = f"{random.randint(0, 999999):06d}"
+
+    otp_store[phone] = {
+        "otp_hash": hashlib.sha256(
+            otp.encode("utf-8")
+        ).hexdigest(),
+
+        "expires_at": datetime.now(timezone.utc)
+        + timedelta(minutes=5),
+
+        "attempts": 0
+    }
+
+    return otp
+
+
+def verify_otp(phone, otp):
+
+    record = otp_store.get(phone)
+
+    if record is None:
+        return (
+            False,
+            "No OTP found. Please request a new OTP.",
+            None
+        )
+
+    now = datetime.now(timezone.utc)
+
+    if now > record["expires_at"]:
+
+        del otp_store[phone]
+
+        return (
+            False,
+            "OTP has expired. Please request a new OTP.",
+            None
+        )
+
+    if record["attempts"] >= 5:
+
+        del otp_store[phone]
+
+        return (
+            False,
+            "Too many incorrect attempts. Please request a new OTP.",
+            None
+        )
+
+    record["attempts"] += 1
+
+    entered_hash = hashlib.sha256(
+        otp.encode("utf-8")
+    ).hexdigest()
+
+    if entered_hash != record["otp_hash"]:
+
+        return (
+            False,
+            "Invalid OTP.",
+            None
+        )
+
+    # OTP is correct
+    del otp_store[phone]
+
+    verification_id = secrets.token_urlsafe(32)
+
+    verification_store[verification_id] = {
+        "phone": phone,
+
+        "expires_at": datetime.now(timezone.utc)
+        + timedelta(minutes=10)
+    }
+
+    return (
+        True,
+        "Phone number verified successfully.",
+        verification_id
+    )
+
+
+def consume_verification_id(
+    verification_id,
+    phone
+):
+
+    record = verification_store.get(
+        verification_id
+    )
+
+    if record is None:
+        return False
+
+    if record["phone"] != phone:
+        return False
+
+    if datetime.now(timezone.utc) > record["expires_at"]:
+
+        del verification_store[verification_id]
+
+        return False
+
+    # Verification ID can only be used once.
+    del verification_store[verification_id]
+
+    return True

@@ -11,6 +11,7 @@ from services.grading_service import (
 )
 
 from database import (
+    supabase,
     create_batch,
     create_inspection,
     create_detected_onion,
@@ -20,13 +21,18 @@ from database import (
     get_user_inspections,
     get_inspection_details,
     upload_inspection_image,
-    update_inspection_image_url
+    update_inspection_image_url,
+    delete_inspection_record,
+    generate_otp,
+    verify_otp,
+    consume_verification_id
 )
 
 import io
 import cv2
 import numpy as np
 import torch
+import traceback
 
 
 # ============================================================
@@ -35,7 +41,7 @@ import torch
 
 app = FastAPI(
     title="PyazLens Model 1 API",
-    description="Onion detection and size estimation API",
+    description="Onion detection, classification, grading and history API",
     version="1.0.0"
 )
 
@@ -72,8 +78,6 @@ print(f"Model path: {MODEL_PATH}")
 
 print("Model classes:", model.names)
 
-
-# Find classes automatically
 CLASS_NAMES = {
     int(class_id): str(class_name).lower()
     for class_id, class_name in model.names.items()
@@ -122,13 +126,12 @@ print(f"Coin class ID: {COIN_CLASS_ID}")
 
 COIN_DIAMETER_MM = 27.0
 ONION_MIN_CONFIDENCE = 0.50
-
-# ============================================================
-# CROP SETTINGS
-# ============================================================
-
 CROP_PADDING = 10
 
+
+# ============================================================
+# CROP HELPER
+# ============================================================
 
 def crop_onion(image_np, bbox):
     """
@@ -160,6 +163,7 @@ def crop_onion(image_np, bbox):
 
     return crop
 
+
 # ============================================================
 # ROOT
 # ============================================================
@@ -178,10 +182,6 @@ def root():
 
 def analyze_onion_image(image):
 
-    # --------------------------------------------------------
-    # Run YOLO
-    # --------------------------------------------------------
-
     results = model.predict(
         source=image,
         imgsz=640,
@@ -192,7 +192,6 @@ def analyze_onion_image(image):
 
     result = results[0]
 
-
     # --------------------------------------------------------
     # Check segmentation
     # --------------------------------------------------------
@@ -201,7 +200,6 @@ def analyze_onion_image(image):
         raise ValueError(
             "No segmentation objects detected."
         )
-
 
     # --------------------------------------------------------
     # Get classes and confidence
@@ -220,13 +218,7 @@ def analyze_onion_image(image):
         .numpy()
     )
 
-
-    # IMPORTANT:
-    # result.masks.xy gives mask coordinates already
-    # scaled to the original image dimensions.
-
     masks_xy = result.masks.xy
-
 
     # --------------------------------------------------------
     # Separate coin and onions
@@ -234,7 +226,6 @@ def analyze_onion_image(image):
 
     coin_masks = []
     onion_masks = []
-
 
     for mask_points, class_id, confidence in zip(
         masks_xy,
@@ -256,7 +247,6 @@ def analyze_onion_image(image):
                     (mask_points, confidence)
                 )
 
-
     # --------------------------------------------------------
     # Check coin
     # --------------------------------------------------------
@@ -267,7 +257,6 @@ def analyze_onion_image(image):
             "Coin was not detected. "
             "Please make sure the 27 mm reference coin is visible."
         )
-
 
     # --------------------------------------------------------
     # Select largest coin
@@ -280,16 +269,14 @@ def analyze_onion_image(image):
         )
     )
 
-
-    # --------------------------------------------------------
-    # Measure coin
-    # --------------------------------------------------------
-
     coin_points = (
         coin_points
         .astype(np.float32)
     )
 
+    # --------------------------------------------------------
+    # Measure coin
+    # --------------------------------------------------------
 
     coin_x_min = float(
         coin_points[:, 0].min()
@@ -307,7 +294,6 @@ def analyze_onion_image(image):
         coin_points[:, 1].max()
     )
 
-
     coin_width_px = (
         coin_x_max - coin_x_min
     )
@@ -316,19 +302,16 @@ def analyze_onion_image(image):
         coin_y_max - coin_y_min
     )
 
-
     coin_diameter_px = (
         coin_width_px +
         coin_height_px
     ) / 2
-
 
     if coin_diameter_px <= 0:
 
         raise ValueError(
             "Invalid coin measurement."
         )
-
 
     # --------------------------------------------------------
     # Pixel → millimetre conversion
@@ -339,13 +322,11 @@ def analyze_onion_image(image):
         coin_diameter_px
     )
 
-
     # --------------------------------------------------------
     # Measure onions
     # --------------------------------------------------------
 
     measurements = []
-
 
     for onion_id, (
         mask_points,
@@ -360,10 +341,8 @@ def analyze_onion_image(image):
             .astype(np.float32)
         )
 
-
         if len(points) < 3:
             continue
-
 
         # ----------------------------------------------------
         # Convex hull
@@ -373,26 +352,16 @@ def analyze_onion_image(image):
             points
         )
 
-
         hull_points = (
             hull.reshape(-1, 2)
             .astype(np.float32)
         )
 
-
         # ----------------------------------------------------
         # Maximum diameter
         # ----------------------------------------------------
-        #
-        # Instead of calculating distances between every
-        # contour point, use the convex hull.
-        #
-        # This significantly reduces the number of points
-        # for large/high-resolution images.
-        #
 
         max_diameter_px = 0.0
-
 
         for i in range(
             len(hull_points)
@@ -408,14 +377,12 @@ def analyze_onion_image(image):
                 )
             )
 
-
             if len(distances) > 0:
 
                 max_diameter_px = max(
                     max_diameter_px,
                     float(distances.max())
                 )
-
 
         # ----------------------------------------------------
         # Diameter in mm
@@ -426,7 +393,6 @@ def analyze_onion_image(image):
             mm_per_pixel
         )
 
-
         # ----------------------------------------------------
         # Bounding box
         # ----------------------------------------------------
@@ -434,7 +400,6 @@ def analyze_onion_image(image):
         x, y, w, h = cv2.boundingRect(
             points.astype(np.int32)
         )
-
 
         width_mm = (
             w *
@@ -445,7 +410,6 @@ def analyze_onion_image(image):
             h *
             mm_per_pixel
         )
-
 
         # ----------------------------------------------------
         # Save measurement
@@ -483,7 +447,6 @@ def analyze_onion_image(image):
             ]
         })
 
-
     # --------------------------------------------------------
     # Final result
     # --------------------------------------------------------
@@ -516,17 +479,13 @@ def analyze_onion_image(image):
 
 
 # ============================================================
-# API ENDPOINT
+# DETECT ENDPOINT
 # ============================================================
 
 @app.post("/detect")
 async def detect_onions(
     file: UploadFile = File(...)
 ):
-
-    # --------------------------------------------------------
-    # Validate image
-    # --------------------------------------------------------
 
     if (
         not file.content_type
@@ -538,33 +497,17 @@ async def detect_onions(
             detail="Please upload an image file."
         )
 
-
     try:
 
-        # ----------------------------------------------------
-        # Read uploaded image
-        # ----------------------------------------------------
-
         image_bytes = await file.read()
-
 
         image = Image.open(
             io.BytesIO(image_bytes)
         ).convert("RGB")
 
-
-        # ----------------------------------------------------
-        # Run Model 1
-        # ----------------------------------------------------
-
         result = analyze_onion_image(
             image
         )
-
-
-        # ----------------------------------------------------
-        # Return response
-        # ----------------------------------------------------
 
         return {
 
@@ -601,7 +544,6 @@ async def detect_onions(
             ]
         }
 
-
     except ValueError as e:
 
         raise HTTPException(
@@ -609,13 +551,13 @@ async def detect_onions(
             detail=str(e)
         )
 
-
     except Exception as e:
 
         raise HTTPException(
             status_code=500,
             detail=f"Model 1 error: {str(e)}"
         )
+
 
 # ============================================================
 # CROP TEST ENDPOINT
@@ -625,10 +567,6 @@ async def detect_onions(
 async def get_onion_crops(
     file: UploadFile = File(...)
 ):
-
-    # --------------------------------------------------------
-    # Validate image
-    # --------------------------------------------------------
 
     if (
         not file.content_type
@@ -640,12 +578,7 @@ async def get_onion_crops(
             detail="Please upload an image file."
         )
 
-
     try:
-
-        # ----------------------------------------------------
-        # Read original image
-        # ----------------------------------------------------
 
         image_bytes = await file.read()
 
@@ -653,29 +586,13 @@ async def get_onion_crops(
             io.BytesIO(image_bytes)
         ).convert("RGB")
 
-
-        # ----------------------------------------------------
-        # Convert to NumPy
-        # ----------------------------------------------------
-
         image_np = np.array(image)
-
-
-        # ----------------------------------------------------
-        # Run Model 1
-        # ----------------------------------------------------
 
         result = analyze_onion_image(
             image
         )
 
-
-        # ----------------------------------------------------
-        # Create crops
-        # ----------------------------------------------------
-
         crops = []
-
 
         for onion in result["onions"]:
 
@@ -684,14 +601,8 @@ async def get_onion_crops(
                 onion["bbox"]
             )
 
-
             if crop.size == 0:
                 continue
-
-
-            # ------------------------------------------------
-            # Save temporary crop
-            # ------------------------------------------------
 
             crop_filename = (
                 f"onion_{onion['id']}.jpg"
@@ -702,7 +613,6 @@ async def get_onion_crops(
                 / crop_filename
             )
 
-
             crop_image = Image.fromarray(
                 crop
             )
@@ -711,7 +621,6 @@ async def get_onion_crops(
                 crop_path,
                 quality=95
             )
-
 
             crops.append({
 
@@ -736,11 +645,6 @@ async def get_onion_crops(
                 "crop_file": crop_filename
             })
 
-
-        # ----------------------------------------------------
-        # Return result
-        # ----------------------------------------------------
-
         return {
 
             "success": True,
@@ -750,7 +654,6 @@ async def get_onion_crops(
             "crops": crops
         }
 
-
     except ValueError as e:
 
         raise HTTPException(
@@ -758,13 +661,124 @@ async def get_onion_crops(
             detail=str(e)
         )
 
-
     except Exception as e:
 
         raise HTTPException(
             status_code=500,
             detail=f"Crop generation error: {str(e)}"
         )
+
+
+# ============================================================
+# USER PROFILE
+# ============================================================
+
+@app.post("/users")
+async def create_user(
+    name: str = Form(...),
+    phone: str | None = Form(None),
+    address: str | None = Form(None)
+):
+
+    try:
+
+        name = name.strip()
+
+        phone = (
+            phone.strip()
+            if phone
+            else None
+        )
+
+        address = (
+            address.strip()
+            if address
+            else None
+        )
+
+        if not name:
+
+            raise HTTPException(
+                status_code=400,
+                detail="Name is required."
+            )
+
+        # ----------------------------------------------------
+        # If phone exists, try to find existing profile.
+        # ----------------------------------------------------
+
+        existing_user = None
+
+        if phone:
+
+            existing_user = (
+                get_user_profile_by_phone(
+                    phone
+                )
+            )
+
+        if existing_user:
+
+            return {
+
+                "success": True,
+
+                "user_profile_id":
+                    existing_user["id"],
+
+                "name":
+                    existing_user["name"],
+
+                "phone":
+                    existing_user.get("phone"),
+
+                "address":
+                    existing_user.get("address"),
+
+                "existing_user": True
+            }
+
+        # ----------------------------------------------------
+        # Create new profile
+        # ----------------------------------------------------
+
+        user = create_user_profile(
+            name=name,
+            phone=phone,
+            address=address
+        )
+
+        return {
+
+            "success": True,
+
+            "user_profile_id":
+                user["id"],
+
+            "name":
+                user["name"],
+
+            "phone":
+                user.get("phone"),
+
+            "address":
+                user.get("address"),
+
+            "existing_user": False
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+
+        traceback.print_exc()
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Could not create user profile: {str(e)}"
+        )
+
 
 # ============================================================
 # COMBINED ANALYSIS ENDPOINT
@@ -775,12 +789,9 @@ async def analyze_batch(
     file: UploadFile = File(...),
     name: str = Form(...),
     phone: str | None = Form(None),
-    address: str | None = Form(None)
+    address: str | None = Form(None),
+    user_profile_id: int = Form(...)
 ):
-
-    # --------------------------------------------------------
-    # Validate image
-    # --------------------------------------------------------
 
     if (
         not file.content_type
@@ -793,21 +804,21 @@ async def analyze_batch(
         )
 
     try:
+
         # ----------------------------------------------------
         # Get or create user profile
         # ----------------------------------------------------
+        # ----------------------------------------------------
+        # Verify user profile
+        # ----------------------------------------------------
 
-        user_profile = None
+        if user_profile_id <= 0:
 
-        if phone:
-            user_profile = get_user_profile_by_phone(phone)
-
-        if user_profile is None:
-            user_profile = create_user_profile(
-                name=name,
-                phone=phone,
-                address=address
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid user profile ID."
             )
+
         # ----------------------------------------------------
         # Read uploaded image
         # ----------------------------------------------------
@@ -818,7 +829,6 @@ async def analyze_batch(
             io.BytesIO(image_bytes)
         ).convert("RGB")
 
-
         # ----------------------------------------------------
         # Run Model 1
         # ----------------------------------------------------
@@ -827,13 +837,11 @@ async def analyze_batch(
             image
         )
 
-
         # ----------------------------------------------------
-        # Convert original image to NumPy
+        # Convert image to NumPy
         # ----------------------------------------------------
 
         image_np = np.array(image)
-
 
         # ----------------------------------------------------
         # Analyze every onion
@@ -841,239 +849,391 @@ async def analyze_batch(
 
         onions = []
 
-
         for onion in model1_result["onions"]:
-
-            # ------------------------------------------------
-            # Crop onion
-            # ------------------------------------------------
 
             crop = crop_onion(
                 image_np,
                 onion["bbox"]
             )
 
-
             if crop.size == 0:
-
                 continue
-
-
-            # ------------------------------------------------
-            # Convert crop back to PIL
-            # ------------------------------------------------
 
             crop_image = Image.fromarray(
                 crop
             )
 
-
             # ------------------------------------------------
-            # Run Model 2
+            # Model 2
             # ------------------------------------------------
 
             defect_result = predict_defects(
                 crop_image
             )
 
-
             # ------------------------------------------------
             # Combine Model 1 + Model 2
             # ------------------------------------------------
-
-            # --------------------------------------------------------
-            # Create combined onion result
-            # --------------------------------------------------------
 
             onion_result = {
 
                 "id": onion["id"],
 
                 "size": {
-                    "diameter_mm": onion["diameter_mm"],
-                    "width_mm": onion["width_mm"],
-                    "height_mm": onion["height_mm"]
+
+                    "diameter_mm":
+                        onion["diameter_mm"],
+
+                    "width_mm":
+                        onion["width_mm"],
+
+                    "height_mm":
+                        onion["height_mm"]
                 },
 
-                "classification": defect_result["classification"],
+                "classification":
+                    defect_result[
+                        "classification"
+                    ],
 
-                "defects": defect_result["defects"],
+                "defects":
+                    defect_result[
+                        "defects"
+                    ],
 
-                "probabilities": defect_result["probabilities"]
+                "probabilities":
+                    defect_result[
+                        "probabilities"
+                    ]
             }
 
-
-            # --------------------------------------------------------
-            # Apply grading
-            # --------------------------------------------------------
+            # ------------------------------------------------
+            # Grading
+            # ------------------------------------------------
 
             grading_result = grade_onion(
                 onion_result
             )
 
+            onion_result["grade"] = (
+                grading_result["grade"]
+            )
 
-            onion_result["grade"] = grading_result[
-                "grade"
-            ]
+            onion_result["grade_reason"] = (
+                grading_result["reason"]
+            )
 
-            onion_result["grade_reason"] = grading_result[
-                "reason"
-            ]
-
-
-            # --------------------------------------------------------
-            # Add onion to final results
-            # --------------------------------------------------------
+            # ------------------------------------------------
+            # Add final onion
+            # ------------------------------------------------
 
             onions.append(
                 onion_result
             )
 
-
-        # --------------------------------------------------------
-        # Generate batch summary
-        # --------------------------------------------------------
+        # ----------------------------------------------------
+        # Batch summary
+        # ----------------------------------------------------
 
         batch_summary = summarize_batch(
             onions
         )
 
-        # --------------------------------------------------------
-        # Save results to Supabase
-        # --------------------------------------------------------
+        # ----------------------------------------------------
+        # Create batch
+        # ----------------------------------------------------
 
-        batch_code = f"PYAZ-{int(torch.randint(100000, 999999, (1,)).item())}"
+        batch_code = (
+            f"PYAZ-"
+            f"{int(torch.randint(100000, 999999, (1,)).item())}"
+        )
 
-        batch = create_batch(batch_code)
+        batch = create_batch(
+            batch_code
+        )
+
+        # ----------------------------------------------------
+        # Upload original image
+        # ----------------------------------------------------
 
         image_path = upload_inspection_image(
             image_bytes,
             file.content_type
         )
 
+        # ----------------------------------------------------
+        # Create inspection
+        # ----------------------------------------------------
+
         inspection = create_inspection({
-            "user_profile_id": user_profile["id"],
-            "batch_id": batch["id"],
-            "input_type": "IMAGE",
-            "image_url": image_path,
-            "total_onions": len(onions),
-            "healthy_count": batch_summary["grade_counts"]["Grade A"],
-            "damaged_count": batch_summary["grade_counts"]["Grade URS"],
-            "rotten_count": batch_summary["defect_summary"]["Rotten"],
-            "sprouted_count": batch_summary["defect_summary"]["Sprouted"],
-            "grade_a_count": batch_summary["grade_counts"]["Grade A"],
-            "urs_count": batch_summary["grade_counts"]["Grade URS"],
-            "rejected_count": batch_summary["grade_counts"]["REJECT"],
-            "grade_a_percentage": batch_summary["grade_percentages"]["Grade A"],
-            "urs_percentage": batch_summary["grade_percentages"]["Grade URS"],
-            "rejected_percentage": batch_summary["grade_percentages"]["REJECT"],
-            "cut_crack_count": batch_summary["defect_summary"]["Cut/Crack"],
-            "skin_damage_count": batch_summary["defect_summary"]["Skin Damage"],
-            "sunburned_count": batch_summary["defect_summary"]["Sunburned"],
-            "misshapen_count": batch_summary["defect_summary"]["Misshapen"],
+
+            "user_profile_id":
+                user_profile_id,
+
+            "batch_id":
+                batch["id"],
+
+            "input_type":
+                "IMAGE",
+
+            "image_url":
+                image_path,
+
+            "total_onions":
+                len(onions),
+
+            "healthy_count":
+                batch_summary[
+                    "grade_counts"
+                ]["Grade A"],
+
+            "damaged_count":
+                batch_summary[
+                    "grade_counts"
+                ]["Grade URS"],
+
+            "rotten_count":
+                batch_summary[
+                    "defect_summary"
+                ]["Rotten"],
+
+            "sprouted_count":
+                batch_summary[
+                    "defect_summary"
+                ]["Sprouted"],
+
+            "grade_a_count":
+                batch_summary[
+                    "grade_counts"
+                ]["Grade A"],
+
+            "urs_count":
+                batch_summary[
+                    "grade_counts"
+                ]["Grade URS"],
+
+            "rejected_count":
+                batch_summary[
+                    "grade_counts"
+                ]["REJECT"],
+
+            "grade_a_percentage":
+                batch_summary[
+                    "grade_percentages"
+                ]["Grade A"],
+
+            "urs_percentage":
+                batch_summary[
+                    "grade_percentages"
+                ]["Grade URS"],
+
+            "rejected_percentage":
+                batch_summary[
+                    "grade_percentages"
+                ]["REJECT"],
+
+            "cut_crack_count":
+                batch_summary[
+                    "defect_summary"
+                ]["Cut/Crack"],
+
+            "skin_damage_count":
+                batch_summary[
+                    "defect_summary"
+                ]["Skin Damage"],
+
+            "sunburned_count":
+                batch_summary[
+                    "defect_summary"
+                ]["Sunburned"],
+
+            "misshapen_count":
+                batch_summary[
+                    "defect_summary"
+                ]["Misshapen"],
+
             "final_grade": (
                 "Grade A"
-                if batch_summary["grade_counts"]["Grade A"] > 0
+                if batch_summary[
+                    "grade_counts"
+                ]["Grade A"] > 0
+
                 else "Grade URS"
-                if batch_summary["grade_counts"]["Grade URS"] > 0
+                if batch_summary[
+                    "grade_counts"
+                ]["Grade URS"] > 0
+
                 else "REJECT"
             )
         })
 
+        # ----------------------------------------------------
+        # Save detected onions + defects
+        # ----------------------------------------------------
+
         for onion in onions:
 
-            detected_onion = create_detected_onion({
-                "inspection_id": inspection["id"],
-                "tracking_id": onion["id"],
-                "diameter_mm": onion["size"]["diameter_mm"],
-                "width_mm": onion["size"]["width_mm"],
-                "height_mm": onion["size"]["height_mm"],
-                "detection_confidence": None,
-                "grade": onion["grade"],
-                "grade_reason": onion["grade_reason"]
-            })
+            detected_onion = (
+                create_detected_onion({
+
+                    "inspection_id":
+                        inspection["id"],
+
+                    "tracking_id":
+                        onion["id"],
+
+                    "diameter_mm":
+                        onion["size"][
+                            "diameter_mm"
+                        ],
+
+                    "width_mm":
+                        onion["size"][
+                            "width_mm"
+                        ],
+
+                    "height_mm":
+                        onion["size"][
+                            "height_mm"
+                        ],
+
+                    "detection_confidence":
+                        None,
+
+                    "grade":
+                        onion["grade"],
+
+                    "grade_reason":
+                        onion["grade_reason"]
+                })
+            )
 
             for defect in onion["defects"]:
+
                 create_onion_defect({
-                    "detected_onion_id": detected_onion["id"],
-                    "defect_class": defect["name"],
-                    "confidence": defect["confidence"]
+
+                    "detected_onion_id":
+                        detected_onion["id"],
+
+                    "defect_class":
+                        defect["name"],
+
+                    "confidence":
+                        defect["confidence"]
                 })
 
-
-        # --------------------------------------------------------
+        # ----------------------------------------------------
         # Final response
-        # --------------------------------------------------------
+        # ----------------------------------------------------
 
         return {
 
             "success": True,
 
-            "total_onions": len(onions),
+            # IMPORTANT:
+            # Android will use this ID for History.
+            "user_profile_id":
+                user_profile_id,
+
+            "total_onions":
+                len(onions),
 
             "measurement": {
-                "reference_coin_diameter_mm": 27.0,
-                "mm_per_pixel": model1_result[
-                    "mm_per_pixel"
-                ]
+
+                "reference_coin_diameter_mm":
+                    27.0,
+
+                "mm_per_pixel":
+                    model1_result[
+                        "mm_per_pixel"
+                    ]
             },
 
-            "onions": onions,
+            "onions":
+                onions,
 
             "summary": {
 
-                "grade_a": batch_summary[
-                    "grade_counts"
-                ]["Grade A"],
+                "grade_a":
+                    batch_summary[
+                        "grade_counts"
+                    ]["Grade A"],
 
-                "grade_urs": batch_summary[
-                    "grade_counts"
-                ]["Grade URS"],
+                "grade_urs":
+                    batch_summary[
+                        "grade_counts"
+                    ]["Grade URS"],
 
-                "rejected": batch_summary[
-                    "grade_counts"
-                ]["REJECT"],
+                "rejected":
+                    batch_summary[
+                        "grade_counts"
+                    ]["REJECT"],
 
-                "grade_a_percentage": batch_summary[
-                    "grade_percentages"
-                ]["Grade A"],
+                "grade_a_percentage":
+                    batch_summary[
+                        "grade_percentages"
+                    ]["Grade A"],
 
-                "grade_urs_percentage": batch_summary[
-                    "grade_percentages"
-                ]["Grade URS"],
+                "grade_urs_percentage":
+                    batch_summary[
+                        "grade_percentages"
+                    ]["Grade URS"],
 
-                "rejected_percentage": batch_summary[
-                    "grade_percentages"
-                ]["REJECT"]
+                "rejected_percentage":
+                    batch_summary[
+                        "grade_percentages"
+                    ]["REJECT"]
             },
 
-            "defect_summary": batch_summary[
-                "defect_summary"
-            ]
+            "defect_summary":
+                batch_summary[
+                    "defect_summary"
+                ]
         }
 
     except ValueError as e:
+
+        print(
+            "\n========== ANALYZE VALUE ERROR =========="
+        )
+
+        traceback.print_exc()
+
+        print(
+            "=========================================\n"
+        )
 
         raise HTTPException(
             status_code=400,
             detail=str(e)
         )
 
-
     except Exception as e:
+
+        print(
+            "\n========== ANALYZE ERROR =========="
+        )
+
+        traceback.print_exc()
+
+        print(
+            "===================================\n"
+        )
 
         raise HTTPException(
             status_code=500,
             detail=f"Combined analysis error: {str(e)}"
-
         )
+
 
 # ============================================================
 # USER INSPECTION HISTORY
 # ============================================================
 
 @app.get("/users/{user_profile_id}/inspections")
-def get_user_history(user_profile_id: int):
+def get_user_history(
+    user_profile_id: int
+):
 
     try:
 
@@ -1082,25 +1242,40 @@ def get_user_history(user_profile_id: int):
         )
 
         return {
+
             "success": True,
-            "user_profile_id": user_profile_id,
-            "total_inspections": len(inspections),
-            "inspections": inspections
+
+            "user_profile_id":
+                user_profile_id,
+
+            "total_inspections":
+                len(inspections),
+
+            "inspections":
+                inspections
         }
 
     except Exception as e:
 
+        traceback.print_exc()
+
         raise HTTPException(
             status_code=500,
-            detail=f"Could not retrieve inspection history: {str(e)}"
+            detail=(
+                "Could not retrieve inspection "
+                f"history: {str(e)}"
+            )
         )
+
 
 # ============================================================
 # INSPECTION DETAILS
 # ============================================================
 
 @app.get("/inspections/{inspection_id}")
-def get_inspection(inspection_id: int):
+def get_inspection(
+    inspection_id: int
+):
 
     try:
 
@@ -1116,8 +1291,11 @@ def get_inspection(inspection_id: int):
             )
 
         return {
+
             "success": True,
-            "inspection": inspection
+
+            "inspection":
+                inspection
         }
 
     except HTTPException:
@@ -1125,44 +1303,247 @@ def get_inspection(inspection_id: int):
 
     except Exception as e:
 
+        traceback.print_exc()
+
         raise HTTPException(
             status_code=500,
-            detail=f"Could not retrieve inspection: {str(e)}"
+            detail=(
+                "Could not retrieve inspection: "
+                f"{str(e)}"
+            )
         )
 
-@app.post("/users")
-async def create_user(
-    name: str = Form(...),
-    phone: str | None = Form(None),
-    address: str | None = Form(None)
-):
-    existing_user = None
+@app.delete("/inspections/{inspection_id}")
+def delete_inspection(inspection_id: int):
+    try:
+        deleted = delete_inspection_record(inspection_id)
 
-    if phone:
-        existing_user = get_user_profile_by_phone(phone)
+        if not deleted:
+            raise HTTPException(
+                status_code=404,
+                detail="Inspection not found."
+            )
 
-    if existing_user:
         return {
-            "message": "User already exists",
-            "user": existing_user
+            "success": True,
+            "inspection_id": inspection_id,
+            "message": "Inspection deleted successfully."
         }
 
-    user = create_user_profile(
-        name=name,
-        phone=phone,
-        address=address
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete inspection: {str(e)}"
+        )
+
+# ============================================================
+# DEVELOPMENT OTP
+# ============================================================
+
+@app.post("/auth/send-otp")
+async def send_otp(phone: str = Form(...)):
+
+    phone = phone.strip()
+
+    if not phone:
+        raise HTTPException(
+            status_code=400,
+            detail="Phone number is required."
+        )
+
+    digits = "".join(
+        character
+        for character in phone
+        if character.isdigit()
     )
 
+    if len(digits) < 10:
+        raise HTTPException(
+            status_code=400,
+            detail="Enter a valid mobile number."
+        )
+
+    otp = generate_otp(phone)
+
     return {
-        "message": "User created successfully",
-        "user": user
+        "success": True,
+        "message": "OTP generated successfully.",
+
+        # DEVELOPMENT ONLY
+        "dev_otp": otp,
+
+        "verification_id": None
     }
 
-@app.get("/users/{user_profile_id}/inspections")
-async def user_inspection_history(user_profile_id: int):
-    inspections = get_user_inspections(user_profile_id)
+
+@app.post("/auth/verify-otp")
+async def verify_phone_otp(
+    phone: str = Form(...),
+    otp: str = Form(...)
+):
+
+    phone = phone.strip()
+    otp = otp.strip()
+
+    if not phone:
+        raise HTTPException(
+            status_code=400,
+            detail="Phone number is required."
+        )
+
+    if len(otp) != 6 or not otp.isdigit():
+
+        raise HTTPException(
+            status_code=400,
+            detail="OTP must be 6 digits."
+        )
+
+    verified, message, verification_id = verify_otp(
+        phone,
+        otp
+    )
+
+    if not verified:
+
+        return {
+            "success": False,
+            "verified": False,
+            "message": message,
+            "phone": phone,
+            "verification_id": None
+        }
 
     return {
-        "user_profile_id": user_profile_id,
-        "inspections": inspections
+        "success": True,
+        "verified": True,
+        "message": message,
+        "phone": phone,
+        "verification_id": verification_id
+    }
+
+@app.post("/users/verified")
+async def create_or_get_verified_user(
+    name: str = Form(...),
+    phone: str = Form(...),
+    address: str | None = Form(None),
+    verification_id: str = Form(...)
+):
+
+    name = name.strip()
+    phone = phone.strip()
+    address = address.strip() if address else None
+    verification_id = verification_id.strip()
+
+    if not name:
+        raise HTTPException(
+            status_code=400,
+            detail="Name is required."
+        )
+
+    if not phone:
+        raise HTTPException(
+            status_code=400,
+            detail="Phone number is required."
+        )
+
+    if not verification_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Phone verification is required."
+        )
+
+    # --------------------------------------------------------
+    # Confirm that this phone was actually verified
+    # --------------------------------------------------------
+
+    verification_valid = consume_verification_id(
+        verification_id,
+        phone
+    )
+
+    if not verification_valid:
+
+        raise HTTPException(
+            status_code=400,
+            detail="Phone verification is invalid or expired."
+        )
+
+    # --------------------------------------------------------
+    # Check whether this phone already belongs to a profile
+    # --------------------------------------------------------
+
+    existing_profile = get_user_profile_by_phone(
+        phone
+    )
+
+    if existing_profile:
+
+        # If an older unverified profile exists,
+        # mark that same profile as verified.
+
+        if not existing_profile.get(
+            "phone_verified",
+            False
+        ):
+
+            update_response = (
+                supabase
+                .table("user_profiles")
+                .update({
+                    "phone_verified": True
+                })
+                .eq(
+                    "id",
+                    existing_profile["id"]
+                )
+                .execute()
+            )
+
+            if update_response.data:
+                existing_profile = update_response.data[0]
+
+        return {
+            "success": True,
+            "user_profile_id": existing_profile["id"],
+            "name": existing_profile["name"],
+            "phone": existing_profile.get("phone"),
+            "address": existing_profile.get("address"),
+            "existing_user": True
+        }
+
+    # --------------------------------------------------------
+    # Create a new VERIFIED profile
+    # --------------------------------------------------------
+
+    response = (
+        supabase
+        .table("user_profiles")
+        .insert({
+            "name": name,
+            "phone": phone,
+            "address": address,
+            "phone_verified": True
+        })
+        .execute()
+    )
+
+    if not response.data:
+
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to create user profile."
+        )
+
+    profile = response.data[0]
+
+    return {
+        "success": True,
+        "user_profile_id": profile["id"],
+        "name": profile["name"],
+        "phone": profile.get("phone"),
+        "address": profile.get("address"),
+        "existing_user": False
     }

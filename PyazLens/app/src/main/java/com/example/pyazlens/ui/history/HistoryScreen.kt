@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -32,6 +33,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,8 +45,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.tooling.preview.Preview
+import com.example.pyazlens.data.network.HistoryInspection
+import com.example.pyazlens.data.network.RetrofitClient
 import com.example.pyazlens.ui.theme.PyazLensTheme
+import androidx.compose.ui.tooling.preview.Preview
 
 private val Purple = Color(0xFF511D50)
 private val Background = Color(0xFFFCFAFD)
@@ -54,87 +58,15 @@ private val BorderGray = Color(0xFFE9E5EA)
 private val Red = Color(0xFFE05252)
 
 
-// ----------------------------------------------------
-// Dummy data model
-// ----------------------------------------------------
-
-private data class DummyInspection(
-    val id: String,
-    val title: String,
-    val date: String,
-    val onionCount: Int,
-    val qualityScore: Int,
-    val grade: String,
-    val defect: String
-)
-
-
-// ----------------------------------------------------
-// Dummy inspection data
-// ----------------------------------------------------
-
-private val dummyInspections = listOf(
-
-    DummyInspection(
-        id = "142",
-        title = "Red Onion #142",
-        date = "Today, 10:24 AM",
-        onionCount = 7,
-        qualityScore = 94,
-        grade = "GRADE A",
-        defect = "No Defect"
-    ),
-
-    DummyInspection(
-        id = "141",
-        title = "Red Onion #141",
-        date = "Today, 09:15 AM",
-        onionCount = 12,
-        qualityScore = 91,
-        grade = "GRADE A",
-        defect = "Sprouted"
-    ),
-
-    DummyInspection(
-        id = "140",
-        title = "Red Onion #140",
-        date = "Yesterday, 05:42 PM",
-        onionCount = 9,
-        qualityScore = 82,
-        grade = "GRADE B",
-        defect = "Cut / Crack"
-    ),
-
-    DummyInspection(
-        id = "139",
-        title = "Red Onion #139",
-        date = "Yesterday, 02:18 PM",
-        onionCount = 15,
-        qualityScore = 76,
-        grade = "GRADE B",
-        defect = "Misshapen"
-    ),
-
-    DummyInspection(
-        id = "138",
-        title = "Red Onion #138",
-        date = "10 Sep 2026, 11:30 AM",
-        onionCount = 8,
-        qualityScore = 61,
-        grade = "GRADE C",
-        defect = "Rotten"
-    )
-)
-
-
-// ----------------------------------------------------
-// History Screen
-// ----------------------------------------------------
+// ============================================================
+// HISTORY SCREEN
+// ============================================================
 
 @Composable
 fun HistoryScreen(
-    onRecordClick: () -> Unit,
-    onDeleteRecord: (String) -> Unit
+    userProfileId: Long,
+    onRecordClick: (Int) -> Unit,
+    onDeleteRecord: (Int) -> Unit
 ) {
 
     var searchQuery by remember {
@@ -146,62 +78,125 @@ fun HistoryScreen(
     }
 
     var inspections by remember {
-        mutableStateOf(dummyInspections)
+        mutableStateOf<List<HistoryInspection>>(emptyList())
+    }
+
+    var isLoading by remember {
+        mutableStateOf(true)
+    }
+
+    var errorMessage by remember {
+        mutableStateOf<String?>(null)
     }
 
     var recordToDelete by remember {
-        mutableStateOf<DummyInspection?>(null)
+        mutableStateOf<HistoryInspection?>(null)
+    }
+
+    var isDeleting by remember {
+        mutableStateOf(false)
     }
 
     val filterOptions = listOf(
         "All",
         "Grade A",
-        "Grade B",
-        "Grade C",
-        "Defective"
+        "Grade URS",
+        "Rejected"
     )
 
-    // ------------------------------------------------
-    // Search + filter
-    // ------------------------------------------------
+    // ========================================================
+    // LOAD HISTORY
+    // ========================================================
 
-    val filteredList = inspections.filter { record ->
+    LaunchedEffect(userProfileId) {
 
-        val matchesSearch =
-            record.title.contains(
-                searchQuery,
-                ignoreCase = true
-            ) ||
-                    record.id.contains(
-                        searchQuery,
-                        ignoreCase = true
-                    )
+        isLoading = true
+        errorMessage = null
 
-        val matchesFilter = when (selectedFilter) {
+        try {
 
-            "Grade A" ->
-                record.grade == "GRADE A"
+            val response =
+                RetrofitClient.api.getUserInspections(
+                    userProfileId
+                )
 
-            "Grade B" ->
-                record.grade == "GRADE B"
+            if (response.success) {
 
-            "Grade C" ->
-                record.grade == "GRADE C"
+                inspections =
+                    response.inspections
 
-            "Defective" ->
-                record.defect != "No Defect"
+            } else {
 
-            else ->
-                true
+                errorMessage =
+                    "Unable to load inspection history."
+            }
+
+        } catch (e: Exception) {
+
+            e.printStackTrace()
+
+            errorMessage =
+                "Connection failed: ${e.message}"
+
+        } finally {
+
+            isLoading = false
         }
-
-        matchesSearch && matchesFilter
     }
 
+    // ========================================================
+    // SEARCH + FILTER
+    // ========================================================
 
-    // ------------------------------------------------
+    val filteredList =
+        inspections.filter { record ->
+
+            val inspectionId =
+                record.id.toString()
+
+            val batchId =
+                record.batch_id?.toString()
+                    ?: ""
+
+            val matchesSearch =
+                inspectionId.contains(
+                    searchQuery,
+                    ignoreCase = true
+                ) ||
+                        batchId.contains(
+                            searchQuery,
+                            ignoreCase = true
+                        )
+
+            val grade =
+                record.final_grade
+                    ?.trim()
+                    ?.uppercase()
+                    ?: ""
+
+            val matchesFilter =
+                when (selectedFilter) {
+
+                    "Grade A" ->
+                        grade == "GRADE A"
+
+                    "Grade URS" ->
+                        grade == "GRADE URS"
+
+                    "Rejected" ->
+                        grade == "REJECT" ||
+                                grade == "REJECTED"
+
+                    else ->
+                        true
+                }
+
+            matchesSearch && matchesFilter
+        }
+
+    // ========================================================
     // UI
-    // ------------------------------------------------
+    // ========================================================
 
     Column(
         modifier = Modifier
@@ -214,7 +209,10 @@ fun HistoryScreen(
             modifier = Modifier.height(16.dp)
         )
 
-        // Header
+        // ====================================================
+        // HEADER
+        // ====================================================
+
         Text(
             text = "History Records",
             color = Purple,
@@ -226,18 +224,23 @@ fun HistoryScreen(
             modifier = Modifier.height(16.dp)
         )
 
+        // ====================================================
+        // SEARCH
+        // ====================================================
 
-        // Search
         OutlinedTextField(
             value = searchQuery,
+
             onValueChange = {
                 searchQuery = it
             },
+
             placeholder = {
                 Text(
-                    text = "Search by ID or batch name..."
+                    text = "Search by ID or batch..."
                 )
             },
+
             leadingIcon = {
                 Icon(
                     imageVector = Icons.Default.Search,
@@ -245,14 +248,21 @@ fun HistoryScreen(
                     tint = Purple
                 )
             },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Purple,
-                unfocusedBorderColor = BorderGray,
-                focusedContainerColor = Color.White,
-                unfocusedContainerColor = Color.White
-            ),
+
+            modifier =
+                Modifier.fillMaxWidth(),
+
+            shape =
+                RoundedCornerShape(16.dp),
+
+            colors =
+                OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Purple,
+                    unfocusedBorderColor = BorderGray,
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White
+                ),
+
             singleLine = true
         )
 
@@ -260,10 +270,13 @@ fun HistoryScreen(
             modifier = Modifier.height(12.dp)
         )
 
+        // ====================================================
+        // FILTER CHIPS
+        // ====================================================
 
-        // Filter chips
         LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement =
+                Arrangement.spacedBy(8.dp)
         ) {
 
             items(filterOptions) { filter ->
@@ -272,6 +285,7 @@ fun HistoryScreen(
                     selectedFilter == filter
 
                 FilterChip(
+
                     selected = isSelected,
 
                     onClick = {
@@ -284,14 +298,16 @@ fun HistoryScreen(
                         )
                     },
 
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Purple,
-                        selectedLabelColor = Color.White,
-                        containerColor = Color.White,
-                        labelColor = Purple
-                    ),
+                    colors =
+                        FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Purple,
+                            selectedLabelColor = Color.White,
+                            containerColor = Color.White,
+                            labelColor = Purple
+                        ),
 
-                    shape = RoundedCornerShape(12.dp)
+                    shape =
+                        RoundedCornerShape(12.dp)
                 )
             }
         }
@@ -300,23 +316,111 @@ fun HistoryScreen(
             modifier = Modifier.height(16.dp)
         )
 
+        // ====================================================
+        // LOADING
+        // ====================================================
 
-        // ------------------------------------------------
-        // Empty state
-        // ------------------------------------------------
-
-        if (filteredList.isEmpty()) {
+        if (isLoading) {
 
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
 
-                contentAlignment = Alignment.Center
+                contentAlignment =
+                    Alignment.Center
             ) {
 
                 Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    horizontalAlignment =
+                        Alignment.CenterHorizontally
+                ) {
+
+                    CircularProgressIndicator(
+                        color = Green
+                    )
+
+                    Spacer(
+                        modifier =
+                            Modifier.height(12.dp)
+                    )
+
+                    Text(
+                        text =
+                            "Loading your inspections...",
+
+                        color = Gray,
+
+                        fontSize = 14.sp
+                    )
+                }
+            }
+
+            // ====================================================
+            // ERROR
+            // ====================================================
+
+        } else if (errorMessage != null) {
+
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+
+                contentAlignment =
+                    Alignment.Center
+            ) {
+
+                Column(
+                    horizontalAlignment =
+                        Alignment.CenterHorizontally
+                ) {
+
+                    Text(
+                        text = "⚠️",
+                        fontSize = 42.sp
+                    )
+
+                    Spacer(
+                        modifier =
+                            Modifier.height(8.dp)
+                    )
+
+                    Text(
+                        text =
+                            errorMessage!!,
+
+                        color = Gray,
+
+                        fontSize = 15.sp,
+
+                        fontWeight =
+                            FontWeight.Medium
+                    )
+                }
+            }
+
+            // ====================================================
+            // EMPTY
+            // ====================================================
+
+        } else if (filteredList.isEmpty()) {
+
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+
+                contentAlignment =
+                    Alignment.Center
+            ) {
+
+                Column(
+                    horizontalAlignment =
+                        Alignment.CenterHorizontally
                 ) {
 
                     Text(
@@ -325,26 +429,34 @@ fun HistoryScreen(
                     )
 
                     Spacer(
-                        modifier = Modifier.height(8.dp)
+                        modifier =
+                            Modifier.height(8.dp)
                     )
 
                     Text(
-                        text = "No inspection records found",
+                        text =
+                            "No inspection records found",
+
                         color = Gray,
+
                         fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium
+
+                        fontWeight =
+                            FontWeight.Medium
                     )
                 }
             }
 
+            // ====================================================
+            // HISTORY LIST
+            // ====================================================
+
         } else {
 
-            // ------------------------------------------------
-            // History list
-            // ------------------------------------------------
-
             LazyColumn(
-                modifier = Modifier.weight(1f),
+
+                modifier =
+                    Modifier.weight(1f),
 
                 verticalArrangement =
                     Arrangement.spacedBy(12.dp),
@@ -363,10 +475,11 @@ fun HistoryScreen(
                 ) { record ->
 
                     HistoryItemCard(
+
                         record = record,
 
                         onClick = {
-                            onRecordClick()
+                            onRecordClick(record.id)
                         },
 
                         onDelete = {
@@ -378,10 +491,9 @@ fun HistoryScreen(
         }
     }
 
-
-    // ----------------------------------------------------
-    // Delete confirmation dialog
-    // ----------------------------------------------------
+    // ========================================================
+    // DELETE CONFIRMATION
+    // ========================================================
 
     recordToDelete?.let { record ->
 
@@ -399,7 +511,8 @@ fun HistoryScreen(
 
             text = {
                 Text(
-                    text = "Are you sure you want to delete ${record.title}?"
+                    text =
+                        "Are you sure you want to delete inspection #${record.id}?"
                 )
             },
 
@@ -408,12 +521,14 @@ fun HistoryScreen(
                 TextButton(
                     onClick = {
 
+                        onDeleteRecord(
+                            record.id
+                        )
+
                         inspections =
                             inspections.filter {
                                 it.id != record.id
                             }
-
-                        onDeleteRecord(record.id)
 
                         recordToDelete = null
                     }
@@ -421,8 +536,11 @@ fun HistoryScreen(
 
                     Text(
                         text = "Delete",
+
                         color = Red,
-                        fontWeight = FontWeight.Bold
+
+                        fontWeight =
+                            FontWeight.Bold
                     )
                 }
             },
@@ -445,48 +563,103 @@ fun HistoryScreen(
 }
 
 
-// ----------------------------------------------------
-// History Card
-// ----------------------------------------------------
+// ============================================================
+// HISTORY CARD
+// ============================================================
 
 @Composable
 private fun HistoryItemCard(
-    record: DummyInspection,
+    record: HistoryInspection,
     onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
 
+    val grade =
+        record.final_grade
+            ?.trim()
+            ?.uppercase()
+            ?: "UNKNOWN"
+
+    val displayGrade =
+        when (grade) {
+
+            "GRADE A" ->
+                "GRADE A"
+
+            "GRADE URS" ->
+                "GRADE URS"
+
+            "REJECT",
+            "REJECTED" ->
+                "REJECT"
+
+            else ->
+                grade
+        }
+
+    val gradeBackground =
+        when (grade) {
+
+            "GRADE A" ->
+                Color(0xFFEAF7E5)
+
+            "GRADE URS" ->
+                Color(0xFFFFF3DD)
+
+            else ->
+                Color(0xFFFFE8E8)
+        }
+
+    val gradeColor =
+        when (grade) {
+
+            "GRADE A" ->
+                Green
+
+            "GRADE URS" ->
+                Color(0xFFD89425)
+
+            else ->
+                Red
+        }
+
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(
-                RoundedCornerShape(20.dp)
-            )
-            .background(Color.White)
-            .border(
-                width = 1.dp,
-                color = BorderGray,
-                shape = RoundedCornerShape(20.dp)
-            )
-            .clickable {
-                onClick()
-            }
-            .padding(14.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(
+                    RoundedCornerShape(20.dp)
+                )
+                .background(Color.White)
+                .border(
+                    width = 1.dp,
+                    color = BorderGray,
+                    shape =
+                        RoundedCornerShape(20.dp)
+                )
+                .clickable {
+                    onClick()
+                }
+                .padding(14.dp),
 
         verticalAlignment =
             Alignment.CenterVertically
     ) {
 
-        // Onion image placeholder
+        // ====================================================
+        // IMAGE PLACEHOLDER
+        // ====================================================
+
         Box(
-            modifier = Modifier
-                .size(60.dp)
-                .clip(
-                    RoundedCornerShape(16.dp)
-                )
-                .background(
-                    Color(0xFFF4ECE8)
-                ),
+            modifier =
+                Modifier
+                    .size(60.dp)
+                    .clip(
+                        RoundedCornerShape(16.dp)
+                    )
+                    .background(
+                        Color(0xFFF4ECE8)
+                    ),
 
             contentAlignment =
                 Alignment.Center
@@ -498,18 +671,23 @@ private fun HistoryItemCard(
             )
         }
 
-
         Spacer(
-            modifier = Modifier.width(14.dp)
+            modifier =
+                Modifier.width(14.dp)
         )
 
+        // ====================================================
+        // DETAILS
+        // ====================================================
 
         Column(
-            modifier = Modifier.weight(1f)
+            modifier =
+                Modifier.weight(1f)
         ) {
 
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier =
+                    Modifier.fillMaxWidth(),
 
                 horizontalArrangement =
                     Arrangement.SpaceBetween,
@@ -519,76 +697,66 @@ private fun HistoryItemCard(
             ) {
 
                 Text(
-                    text = record.title,
+                    text =
+                        "Inspection #${record.id}",
+
                     color = Purple,
+
                     fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
+
+                    fontWeight =
+                        FontWeight.Bold
                 )
 
-
-                // Grade
                 Box(
-                    modifier = Modifier
-                        .clip(
-                            RoundedCornerShape(8.dp)
-                        )
-                        .background(
-                            when (record.grade) {
-
-                                "GRADE A" ->
-                                    Color(0xFFEAF7E5)
-
-                                "GRADE B" ->
-                                    Color(0xFFFFF3DD)
-
-                                else ->
-                                    Color(0xFFFFE8E8)
-                            }
-                        )
-                        .padding(
-                            horizontal = 8.dp,
-                            vertical = 3.dp
-                        )
+                    modifier =
+                        Modifier
+                            .clip(
+                                RoundedCornerShape(8.dp)
+                            )
+                            .background(
+                                gradeBackground
+                            )
+                            .padding(
+                                horizontal = 8.dp,
+                                vertical = 3.dp
+                            )
                 ) {
 
                     Text(
-                        text = record.grade,
+                        text =
+                            displayGrade,
 
-                        color = when (record.grade) {
+                        color =
+                            gradeColor,
 
-                            "GRADE A" ->
-                                Green
+                        fontSize = 9.sp,
 
-                            "GRADE B" ->
-                                Color(0xFFD89425)
-
-                            else ->
-                                Red
-                        },
-
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.ExtraBold
+                        fontWeight =
+                            FontWeight.ExtraBold
                     )
                 }
             }
 
-
             Spacer(
-                modifier = Modifier.height(4.dp)
+                modifier =
+                    Modifier.height(4.dp)
             )
 
-
             Text(
-                text = record.date,
+                text =
+                    record.created_at
+                        ?: "Date unavailable",
+
                 color = Gray,
+
                 fontSize = 11.sp
             )
 
-
             Spacer(
-                modifier = Modifier.height(6.dp)
+                modifier =
+                    Modifier.height(6.dp)
             )
-
 
             Row(
                 verticalAlignment =
@@ -596,56 +764,75 @@ private fun HistoryItemCard(
             ) {
 
                 Text(
-                    text = "${record.onionCount} Onions",
+                    text =
+                        "${record.total_onions} Onions",
+
                     color = Purple,
+
                     fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold
+
+                    fontWeight =
+                        FontWeight.SemiBold
                 )
 
                 Spacer(
-                    modifier = Modifier.width(10.dp)
+                    modifier =
+                        Modifier.width(10.dp)
                 )
 
                 Text(
-                    text = "• ${record.qualityScore}/100",
-                    color = Green,
+                    text =
+                        "• ${record.rejected_count ?: 0} Rejected",
+
+                    color = Red,
+
                     fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
-                )
 
-                Spacer(
-                    modifier = Modifier.width(8.dp)
-                )
-
-                Text(
-                    text = record.defect,
-                    color = Gray,
-                    fontSize = 11.sp
+                    fontWeight =
+                        FontWeight.Bold
                 )
             }
         }
 
+        // ====================================================
+        // DELETE
+        // ====================================================
 
-        // Delete
         IconButton(
             onClick = onDelete
         ) {
 
             Icon(
-                imageVector = Icons.Default.Delete,
-                contentDescription = "Delete",
-                tint = Color(0xFFB0BEC5),
-                modifier = Modifier.size(20.dp)
+                imageVector =
+                    Icons.Default.Delete,
+
+                contentDescription =
+                    "Delete",
+
+                tint =
+                    Color(0xFFB0BEC5),
+
+                modifier =
+                    Modifier.size(20.dp)
             )
         }
     }
 }
 
+
+
+// ============================================================
+// PREVIEW
+// ============================================================
+
 @Preview(showBackground = true)
 @Composable
 private fun HistoryScreenPreview() {
+
     PyazLensTheme {
+
         HistoryScreen(
+            userProfileId = 1L,
             onRecordClick = {},
             onDeleteRecord = {}
         )

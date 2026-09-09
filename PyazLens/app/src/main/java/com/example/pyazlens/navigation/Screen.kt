@@ -20,4 +20,6 @@ sealed class Screen(val route: String) {
     data object Settings : Screen("settings")
 
     data object InspectionResult : Screen("inspection_result")
+
+    data object Otp : Screen("otp")
 }

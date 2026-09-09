@@ -9,16 +9,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,6 +30,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,9 +46,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.pyazlens.R
-import com.example.pyazlens.navigation.Screen
-import com.example.pyazlens.ui.scan.ScanScreen
+import com.example.pyazlens.data.network.HistoryInspection
+import com.example.pyazlens.data.network.RetrofitClient
 import com.example.pyazlens.ui.theme.PyazLensTheme
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 private val Purple = Color(0xFF511D50)
 private val Background = Color(0xFFFCFAFD)
@@ -56,9 +60,47 @@ private val BorderGray = Color(0xFFE9E5EA)
 
 @Composable
 fun HomeScreen(
+    userName: String,
+    userProfileId: Long,
     onInspectClick: () -> Unit,
-    onUploadClick: () -> Unit
+    onUploadClick: () -> Unit,
+    onSeeAllClick: () -> Unit
 ) {
+
+    var recentInspections by remember {
+        mutableStateOf<List<HistoryInspection>>(emptyList())
+    }
+
+    var isLoading by remember {
+        mutableStateOf(true)
+    }
+
+    LaunchedEffect(userProfileId) {
+
+        try {
+
+            val response =
+                RetrofitClient.api.getUserInspections(
+                    userProfileId
+                )
+
+            if (response.success) {
+
+                recentInspections =
+                    response.inspections
+                        .take(3)
+            }
+
+        } catch (_: Exception) {
+
+            // Keep the home screen usable if history
+            // temporarily cannot be loaded.
+
+        } finally {
+
+            isLoading = false
+        }
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -68,24 +110,31 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
 
+        // ==========================================
         // TOP BAR
+        // ==========================================
 
         item {
-            Spacer(modifier = Modifier.height(12.dp))
+
+            Spacer(
+                modifier = Modifier.height(12.dp)
+            )
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // PyazLens logo
+
                 Box(
                     modifier = Modifier
                         .size(48.dp)
                         .offset(x = (-8).dp)
                         .clip(RoundedCornerShape(5.dp))
-                        .offset(y = (6).dp)
-                        .background(color = Background),
+                        .offset(y = 6.dp)
+                        .background(Background),
                     contentAlignment = Alignment.Center
                 ) {
+
                     Image(
                         painter = painterResource(
                             id = R.drawable.pyazlens_logo
@@ -96,38 +145,37 @@ fun HomeScreen(
                             .scale(4f)
                     )
                 }
-                Row(){
+
+                Row {
+
                     Text(
                         text = "Pyaz",
                         color = Purple,
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold
                     )
+
                     Text(
                         text = "Lens",
                         color = Green,
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold
                     )
-
                 }
-
-
 
                 Spacer(
                     modifier = Modifier.weight(1f)
                 )
 
-                // Notification
                 Box(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
                         .background(Color.White)
                         .border(
-                            width = 1.dp,
-                            color = BorderGray,
-                            shape = CircleShape
+                            1.dp,
+                            BorderGray,
+                            CircleShape
                         ),
                     contentAlignment = Alignment.Center
                 ) {
@@ -144,16 +192,15 @@ fun HomeScreen(
                     modifier = Modifier.width(8.dp)
                 )
 
-                // Profile
                 Box(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
                         .background(Color.White)
                         .border(
-                            width = 1.dp,
-                            color = BorderGray,
-                            shape = CircleShape
+                            1.dp,
+                            BorderGray,
+                            CircleShape
                         ),
                     contentAlignment = Alignment.Center
                 ) {
@@ -170,45 +217,15 @@ fun HomeScreen(
             Spacer(
                 modifier = Modifier.height(28.dp)
             )
-            // Greeting text
+
             Text(
-                text ="Hello, dev! Ready to check your onions?",
+                text = "Hello, ${userName.ifBlank { "there" }}! Ready to check your onions?",
                 color = Purple,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 lineHeight = 28.sp
             )
         }
-
-
-//        // HEADING
-//        item {
-//
-//            Text(
-//                text = "Inspect Your Onions",
-//                color = Purple,
-//                fontSize = 30.sp,
-//                fontWeight = FontWeight.ExtraBold
-//            )
-//
-//            Spacer(
-//                modifier = Modifier.height(5.dp)
-//            )
-//
-//            Text(
-//                text = "Use AI to analyze onion quality, size and\ndefects.",
-//                color = Color(0xFF655D67),
-//                fontSize = 14.sp,
-//                lineHeight = 18.sp
-//            )
-//
-//            Spacer(
-//                modifier = Modifier.height(18.dp)
-//            )
-//        }
-
-
-
 
         // ==========================================
         // INSPECT ONION CARD
@@ -219,7 +236,6 @@ fun HomeScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    //        .height(180.dp)
                     .clip(RoundedCornerShape(24.dp))
                     .background(Purple)
                     .padding(20.dp)
@@ -227,7 +243,6 @@ fun HomeScreen(
 
                 Column {
 
-                    // Camera icon
                     Box(
                         modifier = Modifier
                             .size(56.dp)
@@ -268,22 +283,19 @@ fun HomeScreen(
             }
         }
 
-
-
-
         // ==========================================
-        // SCAN ACTIONS (Camera vs Gallery)
+        // SCAN / UPLOAD
         // ==========================================
+
         item {
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Primary Action Button (Camera)
+
                 Button(
-                    onClick =
-                        onInspectClick
-                    ,
+                    onClick = onInspectClick,
                     modifier = Modifier
                         .weight(1f)
                         .height(52.dp),
@@ -293,9 +305,11 @@ fun HomeScreen(
                         contentColor = Color.White
                     )
                 ) {
+
                     Row(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+
                         Icon(
                             imageVector = Icons.Default.AddAPhoto,
                             contentDescription = "Scan an onion",
@@ -314,23 +328,33 @@ fun HomeScreen(
                     }
                 }
 
-                // Secondary Action Button (Gallery)
                 OutlinedButton(
                     onClick = onUploadClick,
                     modifier = Modifier
                         .weight(1f)
                         .height(52.dp),
                     shape = RoundedCornerShape(16.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.5.dp, Purple)
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.5.dp,
+                        Purple
+                    )
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+
                         Icon(
                             imageVector = Icons.Default.Collections,
                             contentDescription = null,
                             tint = Purple,
                             modifier = Modifier.size(20.dp)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Spacer(
+                            modifier = Modifier.width(8.dp)
+                        )
+
                         Text(
                             text = "Upload",
                             color = Purple,
@@ -350,7 +374,6 @@ fun HomeScreen(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
 
@@ -369,107 +392,140 @@ fun HomeScreen(
                     text = "See all >",
                     color = Green,
                     fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.clickable {
+                        onSeeAllClick()
+                    }
                 )
             }
         }
 
         // ==========================================
-        // RECENT INSPECTION 1
+        // RECENT INSPECTIONS
         // ==========================================
 
-        item {
+        if (isLoading) {
 
-            InspectionCard(
-                date = "12 SEP 2026 • 10:30",
-                result = "7 Onions Detected",
-                quality = "92/100 Quality",
-                size = "68mm Avg",
-                grade = "GRADE A"
-            )
+            item {
+
+                Text(
+                    text = "Loading recent inspections...",
+                    color = Gray,
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(
+                        vertical = 8.dp
+                    )
+                )
+            }
+
+        } else if (recentInspections.isEmpty()) {
+
+            item {
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color.White)
+                        .border(
+                            1.dp,
+                            BorderGray,
+                            RoundedCornerShape(20.dp)
+                        )
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+
+                        Text(
+                            text = "🧅",
+                            fontSize = 32.sp
+                        )
+
+                        Spacer(
+                            modifier = Modifier.height(8.dp)
+                        )
+
+                        Text(
+                            text = "No inspections yet",
+                            color = Purple,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Spacer(
+                            modifier = Modifier.height(4.dp)
+                        )
+
+                        Text(
+                            text = "Scan or upload an onion to get started.",
+                            color = Gray,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+            }
+
+        } else {
+
+            recentInspections.forEach { inspection ->
+
+                item(
+                    key = inspection.id
+                ) {
+
+                    InspectionCard(
+                        inspection = inspection
+                    )
+                }
+            }
+        }
+
+        item {
 
             Spacer(
                 modifier = Modifier.height(10.dp)
             )
         }
-
-        item {
-
-            InspectionCard(
-                date = "12 SEP 2026 • 10:30",
-                result = "7 Onions Detected",
-                quality = "92/100 Quality",
-                size = "68mm Avg",
-                grade = "GRADE A"
-            )
-
-            Spacer(
-                modifier = Modifier.height(10.dp)
-            )
-        }
-
-        item {
-
-            InspectionCard(
-                date = "12 SEP 2026 • 10:30",
-                result = "7 Onions Detected",
-                quality = "92/100 Quality",
-                size = "68mm Avg",
-                grade = "GRADE A"
-            )
-
-            Spacer(
-                modifier = Modifier.height(10.dp)
-            )
-        }
-
-
-        // ==========================================
-        // RECENT INSPECTION 2
-        // ==========================================
-
-        item {
-
-            InspectionCard(
-                date = "11 SEP 2026 • 04:15",
-                result = "12 Onions Detected",
-                quality = "74/100 Quality",
-                size = "62mm Avg",
-                grade = "GRADE B"
-            )
-        }
-        item {
-
-            InspectionCard(
-                date = "11 SEP 2026 • 04:15",
-                result = "12 Onions Detected",
-                quality = "74/100 Quality",
-                size = "62mm Avg",
-                grade = "GRADE B"
-            )
-        }
-        item {
-
-            InspectionCard(
-                date = "11 SEP 2026 • 04:15",
-                result = "12 Onions Detected",
-                quality = "74/100 Quality",
-                size = "62mm Avg",
-                grade = "GRADE B"
-            )
-        }
-
     }
 }
 
 @Composable
 private fun InspectionCard(
-    date: String,
-    result: String,
-    quality: String,
-    size: String,
-    grade: String
+    inspection: HistoryInspection
 ) {
+
+    val grade = inspection.final_grade
+        ?.uppercase()
+        ?.replace("GRADE ", "")
+        ?: "—"
+
+    val displayGrade =
+        when (grade) {
+            "A" -> "GRADE A"
+            "URS" -> "URS"
+            "REJECT" -> "REJECT"
+            else -> grade
+        }
+
+    val gradeBackground =
+        when (grade) {
+            "A" -> Color(0xFFEAF7E5)
+            "URS" -> Color(0xFFFFF4D9)
+            "REJECT" -> Color(0xFFFFE3E3)
+            else -> Color(0xFFF1EEF1)
+        }
+
+    val gradeColor =
+        when (grade) {
+            "A" -> Color(0xFF55A83A)
+            "URS" -> Color(0xFFD49320)
+            "REJECT" -> Color(0xFFD94A4A)
+            else -> Gray
+        }
 
     Row(
         modifier = Modifier
@@ -480,13 +536,13 @@ private fun InspectionCard(
             .border(
                 width = 1.dp,
                 color = Color(0xFFEAE6EB),
-                shape = RoundedCornerShape(17.dp)
+                shape = RoundedCornerShape(20.dp)
             )
             .padding(9.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
 
-        // Temporary image area
+        // Visual placeholder only — inspection data itself is real.
         Box(
             modifier = Modifier
                 .size(68.dp)
@@ -510,7 +566,9 @@ private fun InspectionCard(
         ) {
 
             Text(
-                text = date,
+                text = formatInspectionDate(
+                    inspection.created_at
+                ),
                 color = Gray,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold
@@ -521,7 +579,7 @@ private fun InspectionCard(
             )
 
             Text(
-                text = result,
+                text = "${inspection.total_onions} Onions Detected",
                 color = Purple,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
@@ -533,35 +591,34 @@ private fun InspectionCard(
 
             Row {
 
-                Text(
-                    text = quality,
-                    color = Color(0xFF66705E),
-                    fontSize = 11.sp
-                )
+                inspection.rejected_percentage?.let {
+
+                    Text(
+                        text = "${it.toInt()}% rejected",
+                        color = Color(0xFF66705E),
+                        fontSize = 11.sp
+                    )
+                }
 
                 Spacer(
                     modifier = Modifier.width(10.dp)
                 )
 
-                Text(
-                    text = size,
-                    color = Gray,
-                    fontSize = 11.sp
-                )
+                inspection.grade_a_percentage?.let {
+
+                    Text(
+                        text = "${it.toInt()}% Grade A",
+                        color = Gray,
+                        fontSize = 11.sp
+                    )
+                }
             }
         }
 
-        // Grade
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(10.dp))
-                .background(
-                    if (grade == "GRADE A") {
-                        Color(0xFFEAF7E5)
-                    } else {
-                        Color(0xFFFFEDE3)
-                    }
-                )
+                .background(gradeBackground)
                 .padding(
                     horizontal = 6.dp,
                     vertical = 4.dp
@@ -569,12 +626,8 @@ private fun InspectionCard(
         ) {
 
             Text(
-                text = grade,
-                color = if (grade == "GRADE A") {
-                    Color(0xFF55A83A)
-                } else {
-                    Color(0xFFE36B35)
-                },
+                text = displayGrade,
+                color = gradeColor,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -582,13 +635,57 @@ private fun InspectionCard(
     }
 }
 
+private fun formatInspectionDate(
+    dateString: String?
+): String {
+
+    if (dateString.isNullOrBlank()) {
+        return "DATE UNKNOWN"
+    }
+
+    return try {
+
+        val inputFormat =
+            SimpleDateFormat(
+                "yyyy-MM-dd'T'HH:mm:ss",
+                Locale.US
+            )
+
+        val outputFormat =
+            SimpleDateFormat(
+                "dd MMM yyyy • HH:mm",
+                Locale.US
+            )
+
+        val date =
+            inputFormat.parse(
+                dateString.substringBefore(".")
+            )
+
+        if (date != null) {
+            outputFormat.format(date).uppercase()
+        } else {
+            dateString
+        }
+
+    } catch (_: Exception) {
+
+        dateString
+    }
+}
+
 @Preview(showBackground = true)
 @Composable
 fun HomeScreenPreview() {
+
     PyazLensTheme {
+
         HomeScreen(
+            userName = "Dev",
+            userProfileId = 5L,
             onInspectClick = {},
-            onUploadClick = {}
+            onUploadClick = {},
+            onSeeAllClick = {}
         )
     }
 }
