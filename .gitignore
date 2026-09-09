@@ -32,3 +32,15 @@ PyazLens/*.iml
 # Python
 __pycache__/
 .ipynb_checkpoints/
+
+#backend
+backend/.env
+backend/venv/
+
+#OnionModel2
+OnionModel2/
+OnionModel2B/
+OnionModel2C/
+OnionModel2D/
+OnionModel2E/
+OnionModel2F/dataset2/
