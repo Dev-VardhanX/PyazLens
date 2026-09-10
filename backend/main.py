@@ -5,6 +5,9 @@ from PIL import Image
 
 from pathlib import Path
 
+import firebase_admin
+from firebase_admin import credentials, auth
+
 from services.model2_service import predict_defects
 from services.grading_service import (
     grade_onion,
@@ -37,6 +40,7 @@ import torch
 import traceback
 
 
+BASE_DIR = Path(__file__).resolve().parent
 
 # ============================================================
 # FASTAPI APP
@@ -47,6 +51,33 @@ app = FastAPI(
     description="Onion detection, classification, grading and history API",
     version="1.0.0"
 )
+
+# ============================================================
+# FIREBASE ADMIN SDK
+# ============================================================
+
+FIREBASE_CREDENTIALS_PATH = (
+    BASE_DIR
+    / "firebase-service-account.json"
+)
+
+if not firebase_admin._apps:
+
+    if not FIREBASE_CREDENTIALS_PATH.exists():
+
+        raise RuntimeError(
+            "firebase-service-account.json is missing."
+        )
+
+    firebase_credential = credentials.Certificate(
+        str(FIREBASE_CREDENTIALS_PATH)
+    )
+
+    firebase_admin.initialize_app(
+        firebase_credential
+    )
+
+print("Firebase Admin SDK initialized.")
 
 # ============================================================
 # CORS - WEBSITE ACCESS
@@ -68,7 +99,7 @@ app.add_middleware(
 # MODEL
 # ============================================================
 
-BASE_DIR = Path(__file__).resolve().parent
+
 
 MODEL_PATH = (
     BASE_DIR
@@ -1441,7 +1472,290 @@ async def verify_phone_otp(
         "phone": phone,
         "verification_id": verification_id
     }
+# ============================================================
+# FIREBASE AUTHENTICATION
+# ============================================================
 
+@app.post("/auth/firebase")
+async def firebase_authentication(
+    id_token: str = Form(...),
+    name: str = Form(...),
+    address: str | None = Form(None)
+):
+
+    try:
+
+        id_token = id_token.strip()
+        name = name.strip()
+        address = (
+            address.strip()
+            if address
+            else None
+        )
+
+        if not id_token:
+
+            raise HTTPException(
+                status_code=401,
+                detail="Firebase ID token is required."
+            )
+
+        if not name:
+
+            raise HTTPException(
+                status_code=400,
+                detail="Name is required."
+            )
+
+        # ----------------------------------------------------
+        # Verify Firebase ID token
+        # ----------------------------------------------------
+
+        try:
+
+            decoded_token = auth.verify_id_token(
+                id_token
+            )
+
+        except Exception:
+
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid or expired Firebase ID token."
+            )
+
+        # ----------------------------------------------------
+        # Get Firebase identity
+        # ----------------------------------------------------
+
+        firebase_uid = decoded_token.get(
+            "uid"
+        )
+
+        phone = decoded_token.get(
+            "phone_number"
+        )
+
+        if not firebase_uid:
+
+            raise HTTPException(
+                status_code=401,
+                detail="Firebase user ID is missing."
+            )
+
+        if not phone:
+
+            raise HTTPException(
+                status_code=400,
+                detail="Verified phone number is missing from Firebase account."
+            )
+
+        # ----------------------------------------------------
+        # First: find by Firebase UID
+        # ----------------------------------------------------
+
+        firebase_profile_response = (
+            supabase
+            .table("user_profiles")
+            .select("*")
+            .eq(
+                "firebase_uid",
+                firebase_uid
+            )
+            .limit(1)
+            .execute()
+        )
+
+        if firebase_profile_response.data:
+
+            profile = (
+                firebase_profile_response.data[0]
+            )
+
+            return {
+
+                "success": True,
+
+                "user_profile_id":
+                    profile["id"],
+
+                "firebase_uid":
+                    firebase_uid,
+
+                "name":
+                    profile["name"],
+
+                "phone":
+                    profile.get("phone"),
+
+                "address":
+                    profile.get("address"),
+
+                "phone_verified": True,
+
+                "existing_user": True
+            }
+
+        # ----------------------------------------------------
+        # Second: find by phone
+        # ----------------------------------------------------
+
+        phone_profile_response = (
+            supabase
+            .table("user_profiles")
+            .select("*")
+            .eq(
+                "phone",
+                phone
+            )
+            .limit(1)
+            .execute()
+        )
+
+        if phone_profile_response.data:
+
+            profile = (
+                phone_profile_response.data[0]
+            )
+
+            # Attach Firebase identity to this profile.
+            update_response = (
+                supabase
+                .table("user_profiles")
+                .update({
+
+                    "firebase_uid":
+                        firebase_uid,
+
+                    "phone_verified":
+                        True,
+
+                    "name":
+                        name,
+
+                    "address":
+                        address
+
+                })
+                .eq(
+                    "id",
+                    profile["id"]
+                )
+                .execute()
+            )
+
+            if not update_response.data:
+
+                raise HTTPException(
+                    status_code=500,
+                    detail="Unable to update user profile."
+                )
+
+            profile = (
+                update_response.data[0]
+            )
+
+            return {
+
+                "success": True,
+
+                "user_profile_id":
+                    profile["id"],
+
+                "firebase_uid":
+                    firebase_uid,
+
+                "name":
+                    profile["name"],
+
+                "phone":
+                    profile.get("phone"),
+
+                "address":
+                    profile.get("address"),
+
+                "phone_verified": True,
+
+                "existing_user": True
+            }
+
+        # ----------------------------------------------------
+        # Third: create new profile
+        # ----------------------------------------------------
+
+        create_response = (
+            supabase
+            .table("user_profiles")
+            .insert({
+
+                "firebase_uid":
+                    firebase_uid,
+
+                "name":
+                    name,
+
+                "phone":
+                    phone,
+
+                "address":
+                    address,
+
+                "phone_verified":
+                    True
+
+            })
+            .execute()
+        )
+
+        if not create_response.data:
+
+            raise HTTPException(
+                status_code=500,
+                detail="Unable to create user profile."
+            )
+
+        profile = (
+            create_response.data[0]
+        )
+
+        return {
+
+            "success": True,
+
+            "user_profile_id":
+                profile["id"],
+
+            "firebase_uid":
+                firebase_uid,
+
+            "name":
+                profile["name"],
+
+            "phone":
+                profile.get("phone"),
+
+            "address":
+                profile.get("address"),
+
+            "phone_verified": True,
+
+            "existing_user": False
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+
+        traceback.print_exc()
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Firebase authentication failed: "
+                f"{str(e)}"
+            )
+        )
 @app.post("/users/verified")
 async def create_or_get_verified_user(
     name: str = Form(...),
