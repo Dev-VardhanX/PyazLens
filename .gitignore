@@ -52,3 +52,5 @@ backend/key/
 
 # Local environment files
 backend/.env
+
+firebase-service-account.json

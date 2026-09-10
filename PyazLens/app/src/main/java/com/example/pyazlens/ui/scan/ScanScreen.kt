@@ -459,9 +459,7 @@ fun ScanScreen(
 
                         phone = phone,
 
-                        address = address,
-
-                        userProfileId = profileId
+                        address = address
                     )
 
                 isAnalyzing = false

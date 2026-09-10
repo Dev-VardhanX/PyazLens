@@ -48,7 +48,6 @@ private val BorderGray = Color(0xFFE9E5EA)
 @Composable
 fun OtpScreen(
     phone: String,
-    devOtp: String?,
     onBack: () -> Unit,
     onVerify: (String) -> Unit,
     onResend: () -> Unit
@@ -76,7 +75,6 @@ fun OtpScreen(
             .padding(horizontal = 24.dp, vertical = 32.dp)
     ) {
 
-        // Back button
         Box(
             modifier = Modifier
                 .size(40.dp)
@@ -141,7 +139,10 @@ fun OtpScreen(
         BasicTextField(
             value = otp,
             onValueChange = {
-                if (it.length <= 6 && it.all { character -> character.isDigit() }) {
+                if (
+                    it.length <= 6 &&
+                    it.all { character -> character.isDigit() }
+                ) {
                     otp = it
                 }
             },
@@ -168,8 +169,10 @@ fun OtpScreen(
                                 .background(Color.White)
                                 .border(
                                     1.dp,
-                                    if (index == otp.length) Purple
-                                    else BorderGray,
+                                    if (index == otp.length)
+                                        Purple
+                                    else
+                                        BorderGray,
                                     RoundedCornerShape(14.dp)
                                 ),
                             contentAlignment = Alignment.Center
@@ -187,24 +190,6 @@ fun OtpScreen(
         )
 
         Spacer(modifier = Modifier.height(20.dp))
-
-        /*
-         * DEVELOPMENT ONLY
-         *
-         * The backend currently returns dev_otp so that
-         * we can test without an SMS provider.
-         */
-        if (!devOtp.isNullOrBlank()) {
-
-            Text(
-                text = "Development OTP: $devOtp",
-                color = Purple,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-        }
 
         Text(
             text = if (secondsRemaining > 0) {
@@ -281,7 +266,6 @@ fun OtpScreenPreview() {
     PyazLensTheme {
         OtpScreen(
             phone = "+91 98765 43210",
-            devOtp = "123456",
             onBack = {},
             onVerify = {},
             onResend = {}

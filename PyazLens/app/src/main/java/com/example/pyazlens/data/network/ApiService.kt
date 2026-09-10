@@ -8,18 +8,28 @@ import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Part
 import retrofit2.http.Path
 
 interface ApiService {
 
-    @Multipart
-    @POST("users")
-    suspend fun createOrGetUser(
-        @Part("name") name: RequestBody,
-        @Part("phone") phone: RequestBody?,
-        @Part("address") address: RequestBody?
+    // --------------------------------------------------
+    // FIREBASE → BACKEND AUTHENTICATION
+    // --------------------------------------------------
+
+    @FormUrlEncoded
+    @POST("auth/firebase")
+    suspend fun authenticateFirebase(
+        @Field("id_token") idToken: String,
+        @Field("name") name: String,
+        @Field("address") address: String?
     ): UserProfileResponse
+
+
+    // --------------------------------------------------
+    // ANALYZE
+    // --------------------------------------------------
 
     @Multipart
     @POST("analyze")
@@ -27,51 +37,48 @@ interface ApiService {
         @Part file: MultipartBody.Part,
         @Part("name") name: RequestBody,
         @Part("phone") phone: RequestBody?,
-        @Part("address") address: RequestBody?,
-        @Part("user_profile_id") userProfileId: RequestBody
+        @Part("address") address: RequestBody?
     ): AnalyzeResponse
+
+
+    // --------------------------------------------------
+    // HISTORY
+    // --------------------------------------------------
 
     @GET("users/{userProfileId}/inspections")
     suspend fun getUserInspections(
         @Path("userProfileId") userProfileId: Long
     ): HistoryResponse
 
+
+    // --------------------------------------------------
+    // INSPECTION DETAILS
+    // --------------------------------------------------
+
     @GET("inspections/{inspectionId}")
     suspend fun getInspectionDetails(
         @Path("inspectionId") inspectionId: Int
     ): InspectionDetailsResponse
+
+
+    // --------------------------------------------------
+    // DELETE INSPECTION
+    // --------------------------------------------------
 
     @DELETE("inspections/{inspectionId}")
     suspend fun deleteInspection(
         @Path("inspectionId") inspectionId: Int
     ): DeleteInspectionResponse
 
-    @FormUrlEncoded
-    @POST("auth/send-otp")
-    suspend fun sendOtp(
-        @Field("phone") phone: String
-    ): SendOtpResponse
 
-    @FormUrlEncoded
-    @POST("auth/verify-otp")
-    suspend fun verifyOtp(
-        @Field("phone") phone: String,
-        @Field("otp") otp: String
-    ): VerifyOtpResponse
+    // --------------------------------------------------
+    // UPDATE PROFILE
+    // --------------------------------------------------
 
     @Multipart
-    @POST("users/verified")
-    suspend fun createOrGetVerifiedUser(
-        @Part("name") name: RequestBody,
-        @Part("phone") phone: RequestBody,
-        @Part("address") address: RequestBody?,
-        @Part("verification_id") verificationId: RequestBody
-    ): UserProfileResponse
-
-    @Multipart
-    @retrofit2.http.PUT("users/{userProfileId}")
+    @PUT("users/{userProfileId}")
     suspend fun updateUserProfile(
-        @retrofit2.http.Path("userProfileId") userProfileId: Long,
+        @Path("userProfileId") userProfileId: Long,
         @Part("name") name: RequestBody,
         @Part("phone") phone: RequestBody?,
         @Part("address") address: RequestBody?

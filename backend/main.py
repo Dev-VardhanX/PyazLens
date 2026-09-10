@@ -1,4 +1,13 @@
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import (
+    FastAPI,
+    UploadFile,
+    File,
+    Form,
+    HTTPException,
+    Depends
+)
+
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from ultralytics import YOLO
 from PIL import Image
@@ -79,6 +88,60 @@ if not firebase_admin._apps:
 
 print("Firebase Admin SDK initialized.")
 
+# ============================================================
+# FIREBASE REQUEST AUTHENTICATION
+# ============================================================
+
+security = HTTPBearer()
+
+
+def get_authenticated_profile(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """
+    Verify Firebase ID token and return the corresponding
+    PyazLens user profile.
+    """
+
+    token = credentials.credentials
+
+    try:
+
+        decoded_token = auth.verify_id_token(token)
+
+    except Exception:
+
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired Firebase ID token."
+        )
+
+    firebase_uid = decoded_token.get("uid")
+
+    if not firebase_uid:
+
+        raise HTTPException(
+            status_code=401,
+            detail="Firebase user ID is missing."
+        )
+
+    profile_response = (
+        supabase
+        .table("user_profiles")
+        .select("*")
+        .eq("firebase_uid", firebase_uid)
+        .limit(1)
+        .execute()
+    )
+
+    if not profile_response.data:
+
+        raise HTTPException(
+            status_code=403,
+            detail="PyazLens user profile not found."
+        )
+
+    return profile_response.data[0]
 # ============================================================
 # CORS - WEBSITE ACCESS
 # ============================================================
@@ -839,7 +902,7 @@ async def analyze_batch(
     name: str = Form(...),
     phone: str | None = Form(None),
     address: str | None = Form(None),
-    user_profile_id: int = Form(...)
+    profile: dict = Depends(get_authenticated_profile)
 ):
 
     if (
@@ -861,12 +924,7 @@ async def analyze_batch(
         # Verify user profile
         # ----------------------------------------------------
 
-        if user_profile_id <= 0:
-
-            raise HTTPException(
-                status_code=400,
-                detail="Invalid user profile ID."
-            )
+        user_profile_id = profile["id"]
 
         # ----------------------------------------------------
         # Read uploaded image
@@ -1281,8 +1339,15 @@ async def analyze_batch(
 
 @app.get("/users/{user_profile_id}/inspections")
 def get_user_history(
-    user_profile_id: int
+    user_profile_id: int,
+    profile: dict = Depends(get_authenticated_profile)
 ):
+    if user_profile_id != profile["id"]:
+
+        raise HTTPException(
+            status_code=403,
+            detail="You are not authorized to access this user's history."
+        )
 
     try:
 
@@ -1323,7 +1388,8 @@ def get_user_history(
 
 @app.get("/inspections/{inspection_id}")
 def get_inspection(
-    inspection_id: int
+    inspection_id: int,
+    profile: dict = Depends(get_authenticated_profile)
 ):
 
     try:
@@ -1337,6 +1403,13 @@ def get_inspection(
             raise HTTPException(
                 status_code=404,
                 detail="Inspection not found."
+            )
+
+        if inspection.get("user_profile_id") != profile["id"]:
+
+            raise HTTPException(
+                status_code=403,
+                detail="You are not authorized to access this inspection."
             )
 
         return {
@@ -1361,10 +1434,29 @@ def get_inspection(
                 f"{str(e)}"
             )
         )
-
 @app.delete("/inspections/{inspection_id}")
-def delete_inspection(inspection_id: int):
+def delete_inspection(
+    inspection_id: int,
+    profile: dict = Depends(get_authenticated_profile)
+):
     try:
+        inspection = get_inspection_details(
+            inspection_id
+        )
+
+        if inspection is None:
+
+            raise HTTPException(
+                status_code=404,
+                detail="Inspection not found."
+            )
+
+        if inspection.get("user_profile_id") != profile["id"]:
+
+            raise HTTPException(
+                status_code=403,
+                detail="You are not authorized to delete this inspection."
+            )
         deleted = delete_inspection_record(inspection_id)
 
         if not deleted:
@@ -1543,12 +1635,6 @@ async def firebase_authentication(
                 detail="Firebase user ID is missing."
             )
 
-        if not phone:
-
-            raise HTTPException(
-                status_code=400,
-                detail="Verified phone number is missing from Firebase account."
-            )
 
         # ----------------------------------------------------
         # First: find by Firebase UID
@@ -1885,9 +1971,15 @@ async def update_user_profile_endpoint(
     user_profile_id: int,
     name: str = Form(...),
     phone: str | None = Form(None),
-    address: str | None = Form(None)
+    address: str | None = Form(None),
+    profile: dict = Depends(get_authenticated_profile)
 ):
+    if user_profile_id != profile["id"]:
 
+        raise HTTPException(
+            status_code=403,
+            detail="You are not authorized to modify this profile."
+        )
     name = name.strip()
 
     if phone:
