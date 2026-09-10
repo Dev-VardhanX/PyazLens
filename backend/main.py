@@ -1,4 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from ultralytics import YOLO
 from PIL import Image
 
@@ -25,7 +26,8 @@ from database import (
     delete_inspection_record,
     generate_otp,
     verify_otp,
-    consume_verification_id
+    consume_verification_id,
+    update_user_profile
 )
 
 import io
@@ -33,6 +35,7 @@ import cv2
 import numpy as np
 import torch
 import traceback
+
 
 
 # ============================================================
@@ -43,6 +46,21 @@ app = FastAPI(
     title="PyazLens Model 1 API",
     description="Onion detection, classification, grading and history API",
     version="1.0.0"
+)
+
+# ============================================================
+# CORS - WEBSITE ACCESS
+# ============================================================
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://127.0.0.1:5500",
+        "http://localhost:5500",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -1546,4 +1564,89 @@ async def create_or_get_verified_user(
         "phone": profile.get("phone"),
         "address": profile.get("address"),
         "existing_user": False
+    }
+
+@app.put("/users/{user_profile_id}")
+async def update_user_profile_endpoint(
+    user_profile_id: int,
+    name: str = Form(...),
+    phone: str | None = Form(None),
+    address: str | None = Form(None)
+):
+
+    name = name.strip()
+
+    if phone:
+        phone = phone.strip()
+
+    if address:
+        address = address.strip()
+
+    if not name:
+        raise HTTPException(
+            status_code=400,
+            detail="Name is required."
+        )
+
+    # --------------------------------------------------------
+    # Check that profile exists
+    # --------------------------------------------------------
+
+    profile_response = (
+        supabase
+        .table("user_profiles")
+        .select("*")
+        .eq("id", user_profile_id)
+        .limit(1)
+        .execute()
+    )
+
+    if not profile_response.data:
+
+        raise HTTPException(
+            status_code=404,
+            detail="User profile not found."
+        )
+
+    existing_profile = profile_response.data[0]
+
+    # --------------------------------------------------------
+    # Don't allow changing a verified phone directly.
+    # Phone changes should go through OTP verification.
+    # --------------------------------------------------------
+
+    if (
+        phone != existing_profile.get("phone")
+        and existing_profile.get("phone_verified", False)
+    ):
+
+        raise HTTPException(
+            status_code=400,
+            detail="Changing a verified phone number requires OTP verification."
+        )
+
+    updated_profile = update_user_profile(
+        user_profile_id=user_profile_id,
+        name=name,
+        phone=phone,
+        address=address
+    )
+
+    if not updated_profile:
+
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to update profile."
+        )
+
+    return {
+        "success": True,
+        "user_profile_id": updated_profile["id"],
+        "name": updated_profile["name"],
+        "phone": updated_profile.get("phone"),
+        "address": updated_profile.get("address"),
+        "phone_verified": updated_profile.get(
+            "phone_verified",
+            False
+        )
     }
