@@ -332,3 +332,49 @@ def consume_verification_id(
     del verification_store[verification_id]
 
     return True
+
+def update_user_profile(
+    user_profile_id,
+    name,
+    phone=None,
+    address=None
+):
+    response = (
+        supabase
+        .table("user_profiles")
+        .update({
+            "name": name,
+            "phone": phone,
+            "address": address
+        })
+        .eq("id", user_profile_id)
+        .execute()
+    )
+
+    if not response.data:
+        return None
+
+    return response.data[0]
+
+def update_user_profile(
+    user_profile_id,
+    name,
+    phone=None,
+    address=None
+):
+    response = (
+        supabase
+        .table("user_profiles")
+        .update({
+            "name": name,
+            "phone": phone,
+            "address": address
+        })
+        .eq("id", user_profile_id)
+        .execute()
+    )
+
+    if not response.data:
+        return None
+
+    return response.data[0]
