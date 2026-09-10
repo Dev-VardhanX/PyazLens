@@ -46,3 +46,9 @@ OnionModel2C/
 OnionModel2D/
 OnionModel2E/
 OnionModel2F/dataset2/
+
+# Local SSH keys
+backend/key/
+
+# Local environment files
+backend/.env

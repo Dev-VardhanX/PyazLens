@@ -1,5 +1,10 @@
 package com.example.pyazlens.ui.result
 
+import android.content.Context
+import android.content.Intent
+import android.graphics.Paint
+import android.graphics.pdf.PdfDocument
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,12 +16,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -25,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -40,6 +50,8 @@ private val LightBackground = Color(0xFFF7F4F7)
 fun InspectionResultScreen(
     result: AnalyzeResponse
 ) {
+
+    val context = LocalContext.current
 
     LazyColumn(
         modifier = Modifier
@@ -66,6 +78,46 @@ fun InspectionResultScreen(
                 fontSize = 14.sp,
                 color = Color.Gray
             )
+
+            Spacer(
+                modifier = Modifier.height(16.dp)
+            )
+
+            // =================================================
+            // DOWNLOAD PDF BUTTON
+            // =================================================
+
+            Button(
+                onClick = {
+                    generateInspectionPdf(
+                        context = context,
+                        result = result
+                    )
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Purple
+                )
+            ) {
+
+                Icon(
+                    imageVector = Icons.Default.Download,
+                    contentDescription = "Download PDF"
+                )
+
+                Spacer(
+                    modifier = Modifier.width(8.dp)
+                )
+
+                Text(
+                    text = "Download PDF Report",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
 
             Spacer(
                 modifier = Modifier.height(20.dp)
@@ -408,21 +460,18 @@ private fun OnionResultCard(
             Text(
                 text =
                     "Diameter: ${onion.size.diameter_mm} mm",
-
                 fontSize = 14.sp
             )
 
             Text(
                 text =
                     "Width: ${onion.size.width_mm} mm",
-
                 fontSize = 14.sp
             )
 
             Text(
                 text =
                     "Height: ${onion.size.height_mm} mm",
-
                 fontSize = 14.sp
             )
 
@@ -433,7 +482,6 @@ private fun OnionResultCard(
             Text(
                 text =
                     "Classification: ${onion.classification}",
-
                 fontSize = 13.sp,
                 color = Color.Gray
             )
@@ -487,5 +535,327 @@ private fun OnionResultCard(
                 textAlign = TextAlign.Start
             )
         }
+    }
+}
+
+
+// =================================================
+// PDF GENERATION
+// =================================================
+
+private fun generateInspectionPdf(
+    context: Context,
+    result: AnalyzeResponse
+) {
+    try {
+        val document = PdfDocument()
+
+        val pageWidth = 595
+        val pageHeight = 842
+        val margin = 40f
+
+        var pageNumber = 1
+        var page = document.startPage(
+            PdfDocument.PageInfo.Builder(
+                pageWidth,
+                pageHeight,
+                pageNumber
+            ).create()
+        )
+
+        var canvas = page.canvas
+        var y = 50f
+
+        val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            textSize = 26f
+            isFakeBoldText = true
+            color = android.graphics.Color.BLACK
+        }
+
+        val headingPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            textSize = 17f
+            isFakeBoldText = true
+            color = android.graphics.Color.BLACK
+        }
+
+        val normalPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            textSize = 13f
+            isFakeBoldText = false
+            color = android.graphics.Color.BLACK
+        }
+
+        val smallPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            textSize = 11f
+            isFakeBoldText = false
+            color = android.graphics.Color.DKGRAY
+        }
+
+        fun newPageIfNeeded() {
+            if (y > pageHeight - 60f) {
+                document.finishPage(page)
+
+                pageNumber++
+
+                page = document.startPage(
+                    PdfDocument.PageInfo.Builder(
+                        pageWidth,
+                        pageHeight,
+                        pageNumber
+                    ).create()
+                )
+
+                canvas = page.canvas
+                y = 50f
+            }
+        }
+
+        fun text(value: String, paint: Paint, spacing: Float = 20f) {
+            newPageIfNeeded()
+
+            canvas.drawText(
+                value,
+                margin,
+                y,
+                paint
+            )
+
+            y += spacing
+        }
+
+        // =================================================
+        // HEADER
+        // =================================================
+
+        text(
+            "PYAZLENS",
+            titlePaint,
+            35f
+        )
+
+        text(
+            "Onion Quality Inspection Report",
+            headingPaint,
+            30f
+        )
+
+        y += 10f
+
+        // =================================================
+        // INSPECTION SUMMARY
+        // =================================================
+
+        text(
+            "Inspection Summary",
+            headingPaint,
+            25f
+        )
+
+        text(
+            "Total onions analyzed: ${result.total_onions}",
+            normalPaint
+        )
+
+        text(
+            "Grade A: ${result.summary.grade_a} " +
+                    "(${result.summary.grade_a_percentage}%)",
+            normalPaint
+        )
+
+        text(
+            "URS: ${result.summary.grade_urs} " +
+                    "(${result.summary.grade_urs_percentage}%)",
+            normalPaint
+        )
+
+        text(
+            "Rejected: ${result.summary.rejected} " +
+                    "(${result.summary.rejected_percentage}%)",
+            normalPaint
+        )
+
+        y += 10f
+
+        // =================================================
+        // DEFECT SUMMARY
+        // =================================================
+
+        text(
+            "Defect Summary",
+            headingPaint,
+            25f
+        )
+
+        text(
+            "Rotten: ${result.defect_summary.Rotten}",
+            normalPaint
+        )
+
+        text(
+            "Cut / Crack: ${result.defect_summary.cutCrack}",
+            normalPaint
+        )
+
+        text(
+            "Sprouted: ${result.defect_summary.Sprouted}",
+            normalPaint
+        )
+
+        text(
+            "Skin Damage: ${result.defect_summary.skinDamage}",
+            normalPaint
+        )
+
+        text(
+            "Sunburned: ${result.defect_summary.Sunburned}",
+            normalPaint
+        )
+
+        text(
+            "Misshapen: ${result.defect_summary.Misshapen}",
+            normalPaint
+        )
+
+        y += 10f
+
+        // =================================================
+        // INDIVIDUAL RESULTS
+        // =================================================
+
+        text(
+            "Individual Onion Results",
+            headingPaint,
+            25f
+        )
+
+        result.onions.forEachIndexed { index, onion ->
+
+            newPageIfNeeded()
+
+            text(
+                "Onion #${(index + 1).toString().padStart(2, '0')}",
+                headingPaint,
+                23f
+            )
+
+            text(
+                "Grade: ${onion.grade}",
+                normalPaint
+            )
+
+            text(
+                "Diameter: ${onion.size.diameter_mm} mm",
+                normalPaint
+            )
+
+            text(
+                "Width: ${onion.size.width_mm} mm",
+                normalPaint
+            )
+
+            text(
+                "Height: ${onion.size.height_mm} mm",
+                normalPaint
+            )
+
+            text(
+                "Classification: ${onion.classification}",
+                normalPaint
+            )
+
+            if (onion.defects.isEmpty()) {
+
+                text(
+                    "Defects: None",
+                    normalPaint
+                )
+
+            } else {
+
+                text(
+                    "Detected defects:",
+                    normalPaint
+                )
+
+                onion.defects.forEach { defect ->
+
+                    text(
+                        "- ${defect.name} " +
+                                "(${(defect.confidence * 100).toInt()}%)",
+                        smallPaint
+                    )
+                }
+            }
+
+            text(
+                "Reason: ${onion.grade_reason}",
+                smallPaint,
+                25f
+            )
+
+            y += 8f
+        }
+
+        // Finish final page
+        document.finishPage(page)
+
+        // =================================================
+        // SAVE PDF
+        // =================================================
+
+        val fileName =
+            "PyazLens_Inspection_${System.currentTimeMillis()}.pdf"
+
+        val file = java.io.File(
+            context.cacheDir,
+            fileName
+        )
+
+        java.io.FileOutputStream(file).use { output ->
+            document.writeTo(output)
+        }
+
+        document.close()
+
+        // =================================================
+        // SHARE / SAVE
+        // =================================================
+
+        val uri =
+            androidx.core.content.FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                file
+            )
+
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+
+            type = "application/pdf"
+
+            putExtra(
+                Intent.EXTRA_STREAM,
+                uri
+            )
+
+            addFlags(
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+        }
+
+        context.startActivity(
+            Intent.createChooser(
+                shareIntent,
+                "Save or share inspection report"
+            )
+        )
+
+    } catch (exception: Exception) {
+
+        exception.printStackTrace()
+
+        Toast.makeText(
+            context,
+            "Unable to create PDF report",
+            Toast.LENGTH_LONG
+        ).show()
     }
 }
