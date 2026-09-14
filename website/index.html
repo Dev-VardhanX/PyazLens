@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>PyazLens - AI Onion Quality</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- NAVBAR -->
+    <header>
+        <nav class="navbar">
+
+            <div class="logo">
+                <img src="image/logo.png" alt="PyazLens Logo">
+                <span>PyazLens</span>
+            </div>
+
+            <div class="nav-links">
+                <a href="#how">How It Works</a>
+                <a href="#scanner">AI Scanner</a>
+                <a href="#results">Results</a>
+                <a href="#about">About</a>
+            </div>
+
+            <button class="nav-button">
+                Try Scanner
+            </button>
+
+        </nav>
+    </header>
+
+
+    <!-- HERO SECTION -->
+    <section class="hero">
+
+        <div class="hero-content">
+
+            <p class="small-title">
+                AI POWERED ONION ANALYSIS
+            </p>
+
+            <h1>
+                AI That Sees Onion
+                <span>Quality.</span>
+            </h1>
+
+            <p class="hero-text">
+                Upload an onion image and let our AI analyze
+                its quality, freshness and possible defects.
+            </p>
+
+            <div class="hero-buttons">
+                <a href="#scanner" class="primary-btn">
+                Try AI Scanner
+            </a>
+                
+            </div>
+
+        </div>
+
+
+        <div class="hero-image">
+            <img src="image/onion-hero.jpg" alt="Onion">
+        </div>
+
+    </section>
+
+
+    <!-- HOW IT WORKS -->
+    <section id="how" class="section">
+
+        <div class="section-heading">
+
+            <p>HOW IT WORKS</p>
+
+            <h2>
+                How It Works
+            </h2>
+
+            <span>
+                Three simple steps to analyze onion quality.
+            </span>
+
+        </div>
+        <div class="steps">
+
+        <div class="step-card">
+            <div class="step-icon">
+                <img src="image/camera.png" alt="Capture">
+            </div>
+            <h3>1. Capture</h3>
+            <p>Take a clear photo of your onion using your phone camera or upload an existing image.</p>
+        </div>
+
+        <div class="step-card"> 
+            <div class="step-icon">
+                <img src="image/ai-analysis.png" alt="AI Analysis">
+            </div>
+            <h3>2. AI Analysis</h3>
+            <p>Our trained model analyzes the image for freshness, defects, and quality indicators.</p>
+        </div>
+
+        <div class="step-card">
+            <div class="step-icon">
+                <img src="image/check.png" alt="Get Result">
+            </div>
+            <h3>3. Get Result</h3>
+            <p>Receive an instant verdict — healthy or defective — with a confidence score.</p>
+        </div>
+    </div>
+       
+    </section>
+
+
+    <!-- AI SCANNER -->
+    <section id="scanner" class="scanner-section">
+
+        <div class="section-heading">
+
+            <p>AI POWERED</p>
+
+            <h2>
+                AI Scanner
+            </h2>
+
+            <span>
+                Upload an image to check onion quality.
+            </span>
+
+        </div>
+
+
+        <div class="scanner-box">
+
+            <div class="upload-icon">
+                ☁️
+            </div>
+
+            <h3>
+                Upload Onion Image
+            </h3>
+
+            <p>
+                JPG, PNG up to 10MB
+            </p>
+
+           <input 
+                type="file" 
+                id="imageInput" 
+                accept="image/*"
+                capture="environment"
+            >
+
+            <button
+                class="primary-btn"
+                onclick="analyzeImage()"
+            >
+                Analyze Image
+            </button>
+
+            <p id="result"></p>
+
+        </div>
+
+    </section>
+
+
+    <!-- RESULTS -->
+    <section id="results" class="section">
+
+        <div class="section-heading">
+
+            <p>QUALITY RESULTS</p>
+
+            <h2>
+                Results Showcase
+            </h2>
+
+            <span>
+                Examples of onion quality analysis.
+            </span>
+
+        </div>
+
+
+        <div class="onion-cards">
+
+            <div class="onion-card">
+
+                <img
+                    src="image/red-onion.jpg"
+                    alt="Red Onion"
+                >
+
+                <div class="card-content">
+
+                    <h3>
+                        Red Onion
+                    </h3>
+
+                    <p class="good">
+                        ● Good Quality
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="onion-card">
+
+                <img
+                    src="image/white-onion.jpg"
+                    alt="White Onion"
+                >
+
+                <div class="card-content">
+
+                    <h3>
+                        White Onion
+                    </h3>
+
+                    <p class="warning">
+                        ● Needs Attention
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- INSIGHTS -->
+    <!-- INSIGHTS -->
+<section class="insights section" id="insights">
+
+    <div class="section-heading">
+
+        <p>DATA ANALYTICS</p>
+
+        <h2>
+            Insights
+        </h2>
+
+        <span>
+            A complete overview of your onion inspections.
+        </span>
+
+    </div>
+
+
+    <!-- OVERVIEW -->
+
+    <h3 class="insights-subtitle">
+        Overview
+    </h3>
+
+    <div class="stats">
+
+        <div class="stat-card">
+
+            <h3 id="insightInspections">
+                0
+            </h3>
+
+            <p>
+                Inspections
+            </p>
+
+        </div>
+
+
+        <div class="stat-card">
+
+            <h3 id="insightTotal">
+                0
+            </h3>
+
+            <p>
+                Onions Analyzed
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <!-- QUALITY DISTRIBUTION -->
+
+    <h3 class="insights-subtitle">
+        Quality Distribution
+    </h3>
+
+    <div class="quality-insights">
+
+        <div class="quality-row">
+
+            <span>
+                ✓ Grade A
+            </span>
+
+            <strong id="insightGradeA">
+                0 onions · 0%
+            </strong>
+
+        </div>
+
+
+        <div class="quality-row">
+
+            <span>
+                ⚠ Grade URS
+            </span>
+
+            <strong id="insightURS">
+                0 onions · 0%
+            </strong>
+
+        </div>
+
+
+        <div class="quality-row">
+
+            <span>
+                ✕ Rejected
+            </span>
+
+            <strong id="insightRejected">
+                0 onions · 0%
+            </strong>
+
+        </div>
+        <div class="chart-box">
+
+    <h3>
+        Quality Distribution
+    </h3>
+
+    <div class="donut"></div>
+
+</div>
+        <div class="chart-legend">
+    <div><span class="legend-color grade-a"></span> Grade A</div>
+    <div><span class="legend-color grade-urs"></span> Grade URS</div>
+    <div><span class="legend-color rejected"></span> Rejected</div>
+</div>
+
+    </div>
+
+
+    <!-- DEFECT ANALYSIS -->
+
+    <h3 class="insights-subtitle">
+        Defect Analysis
+    </h3>
+
+    <div class="defect-insights">
+
+        <div class="defect-row">
+            <span>Rotten</span>
+            <strong id="insightRotten">0</strong>
+        </div>
+
+        <div class="defect-row">
+            <span>Sprouted</span>
+            <strong id="insightSprouted">0</strong>
+        </div>
+
+        <div class="defect-row">
+            <span>Cut / Crack</span>
+            <strong id="insightCutCrack">0</strong>
+        </div>
+
+        <div class="defect-row">
+            <span>Skin Damage</span>
+            <strong id="insightSkinDamage">0</strong>
+        </div>
+
+        <div class="defect-row">
+            <span>Sunburned</span>
+            <strong id="insightSunburned">0</strong>
+        </div>
+
+        <div class="defect-row">
+            <span>Misshapen</span>
+            <strong id="insightMisshapen">0</strong>
+        </div>
+
+    </div>
+
+</section>
+    <!-- ABOUT -->
+    <section id="about" class="about section">
+
+        <div class="about-image">
+
+            <img
+                src="image/warehouse.jpg"
+                alt="Onion Warehouse"
+            >
+
+        </div>
+
+
+        <div class="about-content">
+
+            <p class="small-title">
+                ABOUT PYAZLENS
+            </p>
+
+            <h2>
+                Smarter Onion Quality
+                With AI
+            </h2>
+
+            <p>
+                PyazLens uses artificial intelligence and
+                computer vision to help farmers, buyers and
+                suppliers understand onion quality faster.
+            </p>
+
+            <p>
+                Our system can detect visible defects,
+                estimate quality and provide useful insights.
+            </p>
+
+        </div>
+
+    </section>
+
+
+    <!-- CTA -->
+    <section class="cta">
+
+        <div>
+
+            <p class="small-title">
+                GET STARTED
+            </p>
+
+            <h2>
+                Take PyazLens With You
+            </h2>
+
+            <p>
+                Analyze onion quality anytime using
+                AI-powered technology.
+            </p>
+
+            <button class="download-btn">
+                📱 Get Started
+            </button>
+
+        </div>
+
+
+        <div class="phone">
+
+            <div class="phone-screen">
+                PyazLens AI
+                <br><br>
+                Scan Onion
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- FOOTER -->
+    <footer>
+
+        <div class="footer-logo">
+            <img src="image/logo.png" alt="PyazLens Logo">
+            <span>PyazLens</span>
+        </div>
+        <div>
+            <h4>Product</h4>
+            <p>AI Scanner</p>
+            <p>Results</p>
+        </div>
+
+        <div>
+            <h4>Company</h4>
+            <p>About</p>
+            <p>Contact</p>
+        </div>
+
+        <div>
+            <h4>Social</h4>
+            <p>Instagram</p>
+            <p>LinkedIn</p>
+        </div>
+
+    </footer>
+
+
+    <!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyB-7l-cIG5j0yF3Pxl30KL0uXMUNe3wBCc",
+        authDomain: "pyazlens.firebaseapp.com",
+        projectId: "pyazlens",
+        storageBucket: "pyazlens.firebasestorage.app",
+        messagingSenderId: "990156992600",
+        appId: "1:990156992600:web:14f97211f2869cdf9b5a2d"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+</script>
+
+<script src="script.js"></script>
+
+</body>
+
+</html>
