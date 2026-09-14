@@ -1,5 +1,6 @@
 package com.example.pyazlens.ui.home
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -20,12 +21,18 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Collections
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Book
+import com.example.pyazlens.ui.settings.OnionInspectionGuideDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -39,65 +46,54 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.pyazlens.R
+import com.example.pyazlens.data.language.AppStrings
 import com.example.pyazlens.data.network.HistoryInspection
 import com.example.pyazlens.data.network.RetrofitClient
+import com.example.pyazlens.ui.history.HistoryItemCard
+import com.example.pyazlens.ui.theme.PyazBackground
+import com.example.pyazlens.ui.theme.PyazCardBorder
+import com.example.pyazlens.ui.theme.PyazGray
+import com.example.pyazlens.ui.theme.PyazGreen
 import com.example.pyazlens.ui.theme.PyazLensTheme
+import com.example.pyazlens.ui.theme.PyazPurple
 import java.text.SimpleDateFormat
 import java.util.Locale
-
-private val Purple = Color(0xFF511D50)
-private val Background = Color(0xFFFCFAFD)
-private val Green = Color(0xFF73C943)
-private val Gray = Color(0xFF8D8790)
-private val BorderGray = Color(0xFFE9E5EA)
 
 @Composable
 fun HomeScreen(
     userName: String,
     userProfileId: Long,
+    currentLanguage: String = "en",
     onInspectClick: () -> Unit,
     onUploadClick: () -> Unit,
-    onSeeAllClick: () -> Unit
+    onSeeAllClick: () -> Unit,
+    onInspectionClick: (Int) -> Unit,
+    onProfileClick: () -> Unit = {}
 ) {
+    val strings = AppStrings.getStrings(currentLanguage)
 
-    var recentInspections by remember {
-        mutableStateOf<List<HistoryInspection>>(emptyList())
-    }
-
-    var isLoading by remember {
-        mutableStateOf(true)
-    }
+    var recentInspections by remember { mutableStateOf<List<HistoryInspection>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var showGuideDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(userProfileId) {
-
         try {
-
-            val response =
-                RetrofitClient.api.getUserInspections(
-                    userProfileId
-                )
-
+            val response = RetrofitClient.api.getUserInspections(userProfileId)
             if (response.success) {
-
-                recentInspections =
-                    response.inspections
-                        .take(3)
+                recentInspections = response.inspections
             }
-
         } catch (_: Exception) {
-
-            // Keep the home screen usable if history
-            // temporarily cannot be loaded.
-
+            // Keep home usable offline
         } finally {
-
             isLoading = false
         }
     }
@@ -105,571 +101,441 @@ fun HomeScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(Background)
+            .background(PyazBackground)
             .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-
-        // ==========================================
-        // TOP BAR
-        // ==========================================
-
+        // 1. TOP HEADER & PROFILE BAR
         item {
-
-            Spacer(
-                modifier = Modifier.height(12.dp)
-            )
+            Spacer(modifier = Modifier.height(8.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .offset(x = (-8).dp)
-                        .clip(RoundedCornerShape(5.dp))
-                        .offset(y = 6.dp)
-                        .background(Background),
-                    contentAlignment = Alignment.Center
-                ) {
-
-                    Image(
-                        painter = painterResource(
-                            id = R.drawable.pyazlens_logo
-                        ),
-                        contentDescription = "PyazLens Logo",
-                        modifier = Modifier
-                            .size(42.dp)
-                            .scale(4f)
-                    )
-                }
-
-                Row {
-
-                    Text(
-                        text = "Pyaz",
-                        color = Purple,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Text(
-                        text = "Lens",
-                        color = Green,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Spacer(
-                    modifier = Modifier.weight(1f)
-                )
-
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(Color.White)
-                        .border(
-                            1.dp,
-                            BorderGray,
-                            CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-
-                    Icon(
-                        imageVector = Icons.Default.Notifications,
-                        contentDescription = "Notifications",
-                        tint = Gray,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                Spacer(
-                    modifier = Modifier.width(8.dp)
-                )
-
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(Color.White)
-                        .border(
-                            1.dp,
-                            BorderGray,
-                            CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = "Profile",
-                        tint = Purple,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-
-            Spacer(
-                modifier = Modifier.height(28.dp)
-            )
-
-            Text(
-                text = "Hello, ${userName.ifBlank { "there" }}! Ready to check your onions?",
-                color = Purple,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                lineHeight = 28.sp
-            )
-        }
-
-        // ==========================================
-        // INSPECT ONION CARD
-        // ==========================================
-
-        item {
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(Purple)
-                    .padding(20.dp)
-            ) {
-
-                Column {
-
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(56.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Green),
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(PyazBackground)
+                            .offset(y =6.dp),
                         contentAlignment = Alignment.Center
                     ) {
-
-                        Icon(
-                            imageVector = Icons.Default.AddAPhoto,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(28.dp)
+                        Image(
+                            painter = painterResource(id = R.drawable.pyazlens_logo),
+                            contentDescription = "PyazLens Logo",
+                            modifier = Modifier.size(34.dp).scale(3.7f)
                         )
                     }
 
-                    Spacer(
-                        modifier = Modifier.height(20.dp)
-                    )
+                    Spacer(modifier = Modifier.width(10.dp))
 
-                    Text(
-                        text = "Inspect Onion",
-                        color = Color.White,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Column {
+                        Row {
+                            Text(text = "Pyaz", color = PyazPurple, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
+                            Text(text = "Lens", color = PyazGreen, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
+                        }
+                    }
+                }
 
-                    Spacer(
-                        modifier = Modifier.height(6.dp)
-                    )
+                Spacer(modifier = Modifier.weight(1f))
 
-                    Text(
-                        text = "Use AI to quickly detect visible defects and assess onion condition.",
-                        color = Color(0xFFD9C9D8),
-                        fontSize = 16.sp
+                // Profile Avatar Button
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(Color.White)
+                        .border(1.5.dp, PyazPurple.copy(alpha = 0.3f), CircleShape)
+                        .clickable { onProfileClick() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = strings.navProfile,
+                        tint = PyazPurple,
+                        modifier = Modifier.size(22.dp)
                     )
                 }
             }
         }
 
-        // ==========================================
-        // SCAN / UPLOAD
-        // ==========================================
-
+        // 2. GREETING CARD
         item {
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-
-                Button(
-                    onClick = onInspectClick,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(52.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Purple,
-                        contentColor = Color.White
-                    )
-                ) {
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-
-                        Icon(
-                            imageVector = Icons.Default.AddAPhoto,
-                            contentDescription = "Scan an onion",
-                            modifier = Modifier.size(20.dp)
-                        )
-
-                        Spacer(
-                            modifier = Modifier.width(8.dp)
-                        )
-
-                        Text(
-                            text = "Scan",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-
-                OutlinedButton(
-                    onClick = onUploadClick,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(52.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    border = androidx.compose.foundation.BorderStroke(
-                        1.5.dp,
-                        Purple
-                    )
-                ) {
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-
-                        Icon(
-                            imageVector = Icons.Default.Collections,
-                            contentDescription = null,
-                            tint = Purple,
-                            modifier = Modifier.size(20.dp)
-                        )
-
-                        Spacer(
-                            modifier = Modifier.width(8.dp)
-                        )
-
-                        Text(
-                            text = "Upload",
-                            color = Purple,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
+            val greetingText = try {
+                String.format(strings.helloGreeting, userName.ifBlank { "User" })
+            } catch (_: Exception) {
+                "Hello, ${userName.ifBlank { "User" }}!"
             }
-        }
 
-        // ==========================================
-        // RECENT INSPECTIONS HEADER
-        // ==========================================
-
-        item {
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-
+            Column {
                 Text(
-                    text = "Recent Inspections",
-                    color = Purple,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.ExtraBold
-                )
-
-                Spacer(
-                    modifier = Modifier.weight(1f)
-                )
-
-                Text(
-                    text = "See all >",
-                    color = Green,
-                    fontSize = 14.sp,
+                    text = greetingText,
+                    color = PyazPurple,
+                    fontSize = 21.sp,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.clickable {
-                        onSeeAllClick()
-                    }
+                    lineHeight = 26.sp
                 )
             }
         }
 
-        // ==========================================
-        // RECENT INSPECTIONS
-        // ==========================================
-
-        if (isLoading) {
-
-            item {
-
-                Text(
-                    text = "Loading recent inspections...",
-                    color = Gray,
-                    fontSize = 14.sp,
-                    modifier = Modifier.padding(
-                        vertical = 8.dp
-                    )
-                )
-            }
-
-        } else if (recentInspections.isEmpty()) {
-
-            item {
-
+        // 3. HERO INSPECTION ACTION CARD
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+            ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Color.White)
-                        .border(
-                            1.dp,
-                            BorderGray,
-                            RoundedCornerShape(20.dp)
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = listOf(PyazPurple, Color(0xFF381037))
+                            )
                         )
-                        .padding(24.dp),
+                        .padding(20.dp)
+                ) {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(PyazGreen),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AutoAwesome,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(26.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Column {
+                                Text(
+                                    text = strings.inspectOnionTitle,
+                                    color = Color.White,
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.ExtraBold
+                                )
+                                Text(
+                                    text = if (currentLanguage == "hi") "तत्काल एआई विश्लेषण" else "Instant AI Grade & Defect Check",
+                                    color = PyazGreen,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text(
+                            text = strings.inspectOnionSub,
+                            color = Color(0xFFE4D8E6),
+                            fontSize = 14.sp,
+                            lineHeight = 18.sp
+                        )
+
+                        Spacer(modifier = Modifier.height(18.dp))
+
+                        // Dual Action Buttons
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Button(
+                                onClick = onInspectClick,
+                                modifier = Modifier.weight(1f).height(48.dp),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = PyazGreen,
+                                    contentColor = Color.White
+                                )
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.PhotoCamera,
+                                        contentDescription = strings.scanBtn,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = strings.scanBtn,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.ExtraBold
+                                    )
+                                }
+                            }
+
+                            OutlinedButton(
+                                onClick = onUploadClick,
+                                modifier = Modifier.weight(1f).height(48.dp),
+                                shape = RoundedCornerShape(14.dp),
+                                border = BorderStroke(1.5.dp, Color.White.copy(alpha = 0.8f)),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Collections,
+                                        contentDescription = strings.uploadBtn,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = strings.uploadBtn,
+                                        color = Color.White,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. ₹10 COIN MANDATORY PREPARATION CARD
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFF7F2F8)),
+                border = BorderStroke(1.dp, PyazPurple.copy(alpha = 0.22f)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(CircleShape)
+                                .background(PyazPurple.copy(alpha = 0.10f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = "🪙", fontSize = 22.sp)
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = strings.coinBeforeScanHeader,
+                                color = PyazPurple.copy(alpha = 0.85f),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 0.5.sp
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = strings.coinRequiredTitle,
+                                color = PyazPurple,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Text(
+                                text = strings.coinRequiredDesc,
+                                color = Color(0xFF4A3E4E),
+                                fontSize = 12.sp,
+                                lineHeight = 16.sp
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Subtle Action Button to Open Full Guide
+                    OutlinedButton(
+                        onClick = { showGuideDialog = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(38.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, PyazPurple.copy(alpha = 0.30f)),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = PyazPurple,
+                            containerColor = Color.White.copy(alpha = 0.7f)
+                        )
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Book,
+                                contentDescription = strings.viewInspectionGuideBtn,
+                                tint = PyazPurple,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = strings.viewInspectionGuideBtn,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // 5. RECENT INSPECTIONS HEADER
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Outlined.History,
+                        contentDescription = strings.recentInspections,
+                        tint = PyazPurple,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = strings.recentInspections,
+                        color = PyazPurple,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                Text(
+                    text = strings.seeAll,
+                    color = PyazGreen,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.clickable { onSeeAllClick() }
+                )
+            }
+        }
+
+        // 6. RECENT INSPECTIONS LIST
+        if (isLoading) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp),
                     contentAlignment = Alignment.Center
                 ) {
-
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(
+                            color = PyazPurple,
+                            strokeWidth = 3.dp,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(text = strings.loadingRecent, color = PyazGray, fontSize = 14.sp)
+                    }
+                }
+            }
+        } else if (recentInspections.isEmpty()) {
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color.White
+                    ),
+                    border = BorderStroke(1.dp, PyazCardBorder)
+                ) {
                     Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 28.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-
                         Text(
                             text = "🧅",
-                            fontSize = 32.sp
+                            fontSize = 42.sp
                         )
 
-                        Spacer(
-                            modifier = Modifier.height(8.dp)
-                        )
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         Text(
-                            text = "No inspections yet",
-                            color = Purple,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
+                            text = strings.noInspectionsYet,
+                            color = PyazPurple,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
                         )
 
-                        Spacer(
-                            modifier = Modifier.height(4.dp)
-                        )
+                        Spacer(modifier = Modifier.height(6.dp))
 
                         Text(
-                            text = "Scan or upload an onion to get started.",
-                            color = Gray,
-                            fontSize = 13.sp
+                            text = strings.noInspectionsSub,
+                            color = PyazGray,
+                            fontSize = 14.sp,
+                            lineHeight = 20.sp,
+                            textAlign = TextAlign.Center
                         )
                     }
                 }
             }
-
         } else {
+            recentInspections.take(3).forEach { inspection ->
+                item(key = inspection.id) {
 
-            recentInspections.forEach { inspection ->
+                    val inspectionNumber =
+                        recentInspections.size -
+                                recentInspections.indexOfFirst { it.id == inspection.id }
 
-                item(
-                    key = inspection.id
-                ) {
-
-                    InspectionCard(
-                        inspection = inspection
+                    HistoryItemCard(
+                        record = inspection,
+                        inspectionNumber = inspectionNumber,
+                        currentLanguage = currentLanguage,
+                        onClick = {
+                            onInspectionClick(inspection.id)
+                        }
                     )
                 }
             }
         }
 
         item {
-
-            Spacer(
-                modifier = Modifier.height(10.dp)
-            )
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
-}
 
-@Composable
-private fun InspectionCard(
-    inspection: HistoryInspection
-) {
-
-    val grade = inspection.final_grade
-        ?.uppercase()
-        ?.replace("GRADE ", "")
-        ?: "—"
-
-    val displayGrade =
-        when (grade) {
-            "A" -> "GRADE A"
-            "URS" -> "URS"
-            "REJECT" -> "REJECT"
-            else -> grade
-        }
-
-    val gradeBackground =
-        when (grade) {
-            "A" -> Color(0xFFEAF7E5)
-            "URS" -> Color(0xFFFFF4D9)
-            "REJECT" -> Color(0xFFFFE3E3)
-            else -> Color(0xFFF1EEF1)
-        }
-
-    val gradeColor =
-        when (grade) {
-            "A" -> Color(0xFF55A83A)
-            "URS" -> Color(0xFFD49320)
-            "REJECT" -> Color(0xFFD94A4A)
-            else -> Gray
-        }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(100.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(Color.White)
-            .border(
-                width = 1.dp,
-                color = Color(0xFFEAE6EB),
-                shape = RoundedCornerShape(20.dp)
-            )
-            .padding(9.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-
-        // Visual placeholder only — inspection data itself is real.
-        Box(
-            modifier = Modifier
-                .size(68.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color(0xFFF0E5DF)),
-            contentAlignment = Alignment.Center
-        ) {
-
-            Text(
-                text = "🧅",
-                fontSize = 27.sp
-            )
-        }
-
-        Spacer(
-            modifier = Modifier.width(9.dp)
+    if (showGuideDialog) {
+        OnionInspectionGuideDialog(
+            currentLanguage = currentLanguage,
+            onDismiss = { showGuideDialog = false }
         )
-
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
-
-            Text(
-                text = formatInspectionDate(
-                    inspection.created_at
-                ),
-                color = Gray,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(
-                modifier = Modifier.height(4.dp)
-            )
-
-            Text(
-                text = "${inspection.total_onions} Onions Detected",
-                color = Purple,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(
-                modifier = Modifier.height(4.dp)
-            )
-
-            Row {
-
-                inspection.rejected_percentage?.let {
-
-                    Text(
-                        text = "${it.toInt()}% rejected",
-                        color = Color(0xFF66705E),
-                        fontSize = 11.sp
-                    )
-                }
-
-                Spacer(
-                    modifier = Modifier.width(10.dp)
-                )
-
-                inspection.grade_a_percentage?.let {
-
-                    Text(
-                        text = "${it.toInt()}% Grade A",
-                        color = Gray,
-                        fontSize = 11.sp
-                    )
-                }
-            }
-        }
-
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(10.dp))
-                .background(gradeBackground)
-                .padding(
-                    horizontal = 6.dp,
-                    vertical = 4.dp
-                )
-        ) {
-
-            Text(
-                text = displayGrade,
-                color = gradeColor,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
     }
 }
 
-private fun formatInspectionDate(
-    dateString: String?
-): String {
-
+private fun formatInspectionDate(dateString: String?): String {
     if (dateString.isNullOrBlank()) {
         return "DATE UNKNOWN"
     }
 
     return try {
-
-        val inputFormat =
-            SimpleDateFormat(
-                "yyyy-MM-dd'T'HH:mm:ss",
-                Locale.US
-            )
-
-        val outputFormat =
-            SimpleDateFormat(
-                "dd MMM yyyy • HH:mm",
-                Locale.US
-            )
-
-        val date =
-            inputFormat.parse(
-                dateString.substringBefore(".")
-            )
-
+        val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
+        val outputFormat = SimpleDateFormat("dd MMM yyyy • HH:mm", Locale.US)
+        val date = inputFormat.parse(dateString.substringBefore("."))
         if (date != null) {
             outputFormat.format(date).uppercase()
         } else {
             dateString
         }
-
     } catch (_: Exception) {
-
         dateString
     }
 }
@@ -677,15 +543,15 @@ private fun formatInspectionDate(
 @Preview(showBackground = true)
 @Composable
 fun HomeScreenPreview() {
-
     PyazLensTheme {
-
         HomeScreen(
             userName = "Dev",
             userProfileId = 5L,
+            currentLanguage = "en",
             onInspectClick = {},
             onUploadClick = {},
-            onSeeAllClick = {}
+            onSeeAllClick = {},
+            onInspectionClick = {}
         )
     }
 }

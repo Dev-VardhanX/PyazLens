@@ -1,11 +1,13 @@
 package com.example.pyazlens.ui.scan
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.Camera
@@ -29,14 +31,21 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -53,7 +62,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -61,16 +69,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.example.pyazlens.data.language.AppStrings
 import com.example.pyazlens.data.network.AnalyzeResponse
-import com.example.pyazlens.data.network.RetrofitClient
 import com.example.pyazlens.data.network.uriToMultipart
+import com.example.pyazlens.data.network.RetrofitClient
+import com.example.pyazlens.ui.theme.PyazGreen
 import com.example.pyazlens.ui.theme.PyazLensTheme
+import com.example.pyazlens.ui.theme.PyazPurple
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import okhttp3.RequestBody.Companion.toRequestBody
-
-private val Purple = Color(0xFF511D50)
-private val Green = Color(0xFF73C943)
+import retrofit2.HttpException
+import java.io.File
+import java.io.FileOutputStream
 
 @Composable
 fun ScanScreen(
@@ -79,98 +91,45 @@ fun ScanScreen(
     userPhone: String,
     userAddress: String,
     userProfileId: Long,
+    currentLanguage: String = "en",
     onAnalysisComplete: (AnalyzeResponse) -> Unit
 ) {
-
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val strings = AppStrings.getStrings(currentLanguage)
 
-    // ------------------------------------------------
     // Camera state
-    // ------------------------------------------------
+    var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
+    var camera by remember { mutableStateOf<Camera?>(null) }
 
-    var imageCapture by remember {
-        mutableStateOf<ImageCapture?>(null)
-    }
+    // Captured / Gallery Image Bitmaps & Uris
+    var capturedBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var galleryBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var galleryImageUri by remember { mutableStateOf<Uri?>(null) }
 
-    var camera by remember {
-        mutableStateOf<Camera?>(null)
-    }
-
-    // ------------------------------------------------
-    // Captured image
-    // ------------------------------------------------
-
-    var capturedBitmap by remember {
-        mutableStateOf<Bitmap?>(null)
-    }
-
-    // ------------------------------------------------
-    // Gallery image
-    // ------------------------------------------------
-
-    var galleryBitmap by remember {
-        mutableStateOf<Bitmap?>(null)
-    }
-
-    var galleryImageUri by remember {
-        mutableStateOf<Uri?>(null)
-    }
-
-    // Load image coming from Home → Upload
+    // Load initial image coming from Home → Upload
     LaunchedEffect(initialImageUri) {
-
         if (initialImageUri != null) {
-
             try {
-
-                val bitmap =
-                    context.contentResolver
-                        .openInputStream(initialImageUri)
-                        ?.use {
-                            BitmapFactory.decodeStream(it)
-                        }
-
+                val bitmap = context.contentResolver.openInputStream(initialImageUri)?.use {
+                    BitmapFactory.decodeStream(it)
+                }
                 if (bitmap != null) {
-
                     galleryBitmap = bitmap
                     galleryImageUri = initialImageUri
                     capturedBitmap = null
                 }
-
             } catch (e: Exception) {
-
                 e.printStackTrace()
             }
         }
     }
 
-    // ------------------------------------------------
-    // Flash
-    // ------------------------------------------------
-
-    var flashEnabled by remember {
-        mutableStateOf(false)
-    }
-
-    // ------------------------------------------------
-    // AI
-    // ------------------------------------------------
-
-    var isAnalyzing by remember {
-        mutableStateOf(false)
-    }
-
-    var analysisError by remember {
-        mutableStateOf<String?>(null)
-    }
-
-    // ------------------------------------------------
-    // Camera permission
-    // ------------------------------------------------
+    var flashEnabled by remember { mutableStateOf(false) }
+    var isAnalyzing by remember { mutableStateOf(false) }
+    var analysisError by remember { mutableStateOf<String?>(null) }
 
     var hasCameraPermission by remember {
-
         mutableStateOf(
             ContextCompat.checkSelfPermission(
                 context,
@@ -179,895 +138,452 @@ fun ScanScreen(
         )
     }
 
-    val permissionLauncher =
-        rememberLauncherForActivityResult(
-            ActivityResultContracts.RequestPermission()
-        ) { granted ->
-
-            hasCameraPermission = granted
-        }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        hasCameraPermission = granted
+    }
 
     LaunchedEffect(Unit) {
-
         if (!hasCameraPermission) {
-
-            permissionLauncher.launch(
-                Manifest.permission.CAMERA
-            )
+            permissionLauncher.launch(Manifest.permission.CAMERA)
         }
     }
 
-    // ------------------------------------------------
-    // Gallery
-    // ------------------------------------------------
-
-    val galleryLauncher =
-        rememberLauncherForActivityResult(
-            ActivityResultContracts.GetContent()
-        ) { uri: Uri? ->
-
-            if (uri != null) {
-
-                try {
-
-                    val bitmap =
-                        context.contentResolver
-                            .openInputStream(uri)
-                            ?.use {
-                                BitmapFactory.decodeStream(it)
-                            }
-
-                    if (bitmap != null) {
-
-                        galleryBitmap = bitmap
-                        galleryImageUri = uri
-                        capturedBitmap = null
-                        analysisError = null
-                    }
-
-                } catch (e: Exception) {
-
-                    e.printStackTrace()
-                }
-            }
-        }
-
-    // ------------------------------------------------
-    // CameraX setup
-    // ------------------------------------------------
-
-    fun startCamera(previewView: PreviewView) {
-
-        val cameraProviderFuture =
-            ProcessCameraProvider.getInstance(context)
-
-        cameraProviderFuture.addListener({
-
+    val galleryLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
             try {
-
-                val cameraProvider =
-                    cameraProviderFuture.get()
-
-                val preview =
-                    CameraPreview.Builder()
-                        .build()
-
-                val newImageCapture =
-                    ImageCapture.Builder()
-                        .setCaptureMode(
-                            ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY
-                        )
-                        .build()
-
-                val cameraSelector =
-                    CameraSelector.DEFAULT_BACK_CAMERA
-
-                cameraProvider.unbindAll()
-
-                val newCamera =
-                    cameraProvider.bindToLifecycle(
-                        lifecycleOwner,
-                        cameraSelector,
-                        preview,
-                        newImageCapture
-                    )
-
-                preview.setSurfaceProvider(
-                    previewView.surfaceProvider
-                )
-
-                imageCapture = newImageCapture
-                camera = newCamera
-
+                val bitmap = context.contentResolver.openInputStream(uri)?.use {
+                    BitmapFactory.decodeStream(it)
+                }
+                if (bitmap != null) {
+                    galleryBitmap = bitmap
+                    galleryImageUri = uri
+                    capturedBitmap = null
+                    analysisError = null
+                }
             } catch (e: Exception) {
-
                 e.printStackTrace()
             }
+        }
+    }
 
+    fun startCamera(previewView: PreviewView) {
+        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+        cameraProviderFuture.addListener({
+            try {
+                val cameraProvider = cameraProviderFuture.get()
+                val preview = CameraPreview.Builder().build().also {
+                    it.setSurfaceProvider(previewView.surfaceProvider)
+                }
+                imageCapture = ImageCapture.Builder().build()
+                val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+
+                cameraProvider.unbindAll()
+                camera = cameraProvider.bindToLifecycle(
+                    lifecycleOwner,
+                    cameraSelector,
+                    preview,
+                    imageCapture
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }, ContextCompat.getMainExecutor(context))
     }
 
-    // ------------------------------------------------
-    // Capture photo
-    // ------------------------------------------------
-
     fun capturePhoto() {
-
-        val capture =
-            imageCapture ?: return
-
-        val photoFile =
-            java.io.File(
-                context.cacheDir,
-                "pyazlens_${System.currentTimeMillis()}.jpg"
-            )
-
-        val outputOptions =
-            ImageCapture.OutputFileOptions
-                .Builder(photoFile)
-                .build()
+        val capture = imageCapture ?: return
+        val photoFile = File(context.cacheDir, "scan_${System.currentTimeMillis()}.jpg")
+        val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
 
         capture.takePicture(
             outputOptions,
             ContextCompat.getMainExecutor(context),
-
             object : ImageCapture.OnImageSavedCallback {
-
-                override fun onImageSaved(
-                    outputFileResults: ImageCapture.OutputFileResults
-                ) {
-
-                    try {
-
-                        val bitmap =
-                            BitmapFactory.decodeFile(
-                                photoFile.absolutePath
-                            )
-
-                        if (bitmap != null) {
-
-                            capturedBitmap = bitmap
-                            galleryBitmap = null
-                            galleryImageUri = null
-                            analysisError = null
-                        }
-
-                    } catch (e: Exception) {
-
-                        e.printStackTrace()
-                    }
+                override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                    val bitmap = BitmapFactory.decodeFile(photoFile.absolutePath)
+                    capturedBitmap = bitmap
+                    galleryBitmap = null
+                    galleryImageUri = Uri.fromFile(photoFile)
+                    analysisError = null
                 }
 
-                override fun onError(
-                    exception: ImageCaptureException
-                ) {
-
-                    exception.printStackTrace()
-
-                    analysisError =
-                        "Unable to capture image."
+                override fun onError(exc: ImageCaptureException) {
+                    Toast.makeText(context, "Capture failed: ${exc.message}", Toast.LENGTH_SHORT).show()
                 }
             }
         )
     }
 
-    // ------------------------------------------------
-    // Analyze image
-    // ------------------------------------------------
-
     fun analyzeImage() {
-
-        val imageUri: Uri? =
-
-            galleryImageUri
-                ?: try {
-
-                    if (capturedBitmap == null) {
-                        null
-                    } else {
-
-                        val file =
-                            java.io.File(
-                                context.cacheDir,
-                                "pyazlens_upload_${System.currentTimeMillis()}.jpg"
-                            )
-
-                        file.outputStream().use { outputStream ->
-
-                            capturedBitmap?.compress(
-                                Bitmap.CompressFormat.JPEG,
-                                90,
-                                outputStream
-                            )
-                        }
-
-                        Uri.fromFile(file)
-                    }
-
-                } catch (e: Exception) {
-
-                    e.printStackTrace()
-                    null
-                }
-
-        if (imageUri == null) {
-
-            analysisError =
-                "Unable to prepare image."
-
-            return
+        val uri = galleryImageUri
+        if (uri == null) {
+            val bitmap = capturedBitmap
+            if (bitmap == null) {
+                Toast.makeText(context, "Please capture or select an image.", Toast.LENGTH_SHORT).show()
+                return
+            }
+            val file = File(context.cacheDir, "temp_scan.jpg")
+            FileOutputStream(file).use { out ->
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
+            }
+            galleryImageUri = Uri.fromFile(file)
         }
+
+        val imageUri = galleryImageUri ?: return
 
         isAnalyzing = true
         analysisError = null
 
         MainScope().launch {
-
             try {
+                val filePart = uriToMultipart(context, imageUri)
+                val name = userName.trim().toRequestBody()
+                val phone = userPhone.trim().takeIf { it.isNotBlank() }?.toRequestBody()
+                val address = userAddress.trim().takeIf { it.isNotBlank() }?.toRequestBody()
 
-                // Convert selected/captured image to multipart
-                val filePart =
-                    uriToMultipart(
-                        context,
-                        imageUri
-                    )
-
-                // ------------------------------------------------
-                // ACTUAL USER DETAILS
-                // ------------------------------------------------
-
-                val name =
-                    userName
-                        .trim()
-                        .toRequestBody()
-
-                val phone =
-                    userPhone
-                        .trim()
-                        .takeIf {
-                            it.isNotBlank()
-                        }
-                        ?.toRequestBody()
-
-                val address =
-                    userAddress
-                        .trim()
-                        .takeIf {
-                            it.isNotBlank()
-                        }
-                        ?.toRequestBody()
-
-                // ------------------------------------------------
-                // USER PROFILE ID
-                // ------------------------------------------------
-
-                val profileId =
-                    userProfileId
-                        .toString()
-                        .toRequestBody()
-
-                // ------------------------------------------------
-                // API CALL
-                // ------------------------------------------------
-
-                val response =
-                    RetrofitClient.api.analyzeImage(
-
-                        file = filePart,
-
-                        name = name,
-
-                        phone = phone,
-
-                        address = address
-                    )
+                val response = RetrofitClient.api.analyzeImage(
+                    file = filePart,
+                    name = name,
+                    phone = phone,
+                    address = address
+                )
 
                 isAnalyzing = false
-
                 if (response.success) {
-
                     onAnalysisComplete(response)
-
                 } else {
-
-                    analysisError =
-                        "AI analysis failed."
+                    analysisError = strings.aiAnalysisFailed
                 }
-
-            } catch (e: Exception) {
-
-                e.printStackTrace()
-
+            } catch (e: HttpException) {
                 isAnalyzing = false
-
-                analysisError =
-                    "Connection failed: ${e.message}"
+                val errorBody = e.response()?.errorBody()?.string()
+                analysisError = if (!errorBody.isNullOrBlank()) {
+                    if (errorBody.contains("detail")) {
+                        errorBody.substringAfter("\"detail\":\"").substringBefore("\"")
+                    } else {
+                        errorBody
+                    }
+                } else {
+                    "${strings.connectionFailed} (${e.code()})"
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                isAnalyzing = false
+                analysisError = "${strings.connectionFailed}: ${e.message}"
             }
         }
     }
 
-    // ------------------------------------------------
-    // Current image
-    // ------------------------------------------------
-
-    val currentBitmap =
-        capturedBitmap ?: galleryBitmap
-
-    // ------------------------------------------------
-    // UI
-    // ------------------------------------------------
+    val currentBitmap = capturedBitmap ?: galleryBitmap
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
     ) {
-
-        // =================================================
         // CAMERA PREVIEW
-        // =================================================
-
-        if (
-            currentBitmap == null &&
-            hasCameraPermission
-        ) {
-
+        if (currentBitmap == null && hasCameraPermission) {
             AndroidView(
                 factory = { ctx ->
-
                     PreviewView(ctx).apply {
-
-                        layoutParams =
-                            ViewGroup.LayoutParams(
-                                ViewGroup.LayoutParams.MATCH_PARENT,
-                                ViewGroup.LayoutParams.MATCH_PARENT
-                            )
-
-                        scaleType =
-                            PreviewView.ScaleType.FILL_CENTER
-
+                        layoutParams = ViewGroup.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT
+                        )
+                        scaleType = PreviewView.ScaleType.FILL_CENTER
                         startCamera(this)
                     }
                 },
-
-                modifier =
-                    Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize()
             )
         }
 
-        // =================================================
-        // CAPTURED / GALLERY IMAGE
-        // =================================================
-
+        // CAPTURED / GALLERY PREVIEW
         if (currentBitmap != null) {
-
             Image(
-                bitmap =
-                    currentBitmap.asImageBitmap(),
-
-                contentDescription =
-                    "Onion inspection image",
-
-                modifier =
-                    Modifier.fillMaxSize(),
-
-                contentScale =
-                    ContentScale.Crop
+                bitmap = currentBitmap.asImageBitmap(),
+                contentDescription = strings.readyForAi,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
             )
         }
 
-        // =================================================
         // NO CAMERA PERMISSION
-        // =================================================
-
-        if (
-            !hasCameraPermission &&
-            currentBitmap == null
-        ) {
-
+        if (!hasCameraPermission && currentBitmap == null) {
             Box(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .background(
-                            Color(0xFF302A2F)
-                        ),
-
-                contentAlignment =
-                    Alignment.Center
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xFF221625)),
+                contentAlignment = Alignment.Center
             ) {
-
-                Column(
-                    horizontalAlignment =
-                        Alignment.CenterHorizontally
-                ) {
-
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(text = "📷", fontSize = 64.sp)
+                    Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "📷",
-                        fontSize = 70.sp
-                    )
-
-                    Spacer(
-                        modifier =
-                            Modifier.height(16.dp)
-                    )
-
-                    Text(
-                        text =
-                            "Camera permission required",
-
+                        text = strings.cameraPermissionTitle,
                         color = Color.White,
-
                         fontSize = 17.sp,
-
-                        fontWeight =
-                            FontWeight.Bold
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
         }
 
-        // =================================================
-        // TOP INSTRUCTION
-        // =================================================
-
+        // TOP INSTRUCTION BANNER
         Box(
-            modifier =
-                Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(
-                        top = 40.dp,
-                        start = 24.dp,
-                        end = 24.dp
-                    )
-                    .clip(
-                        RoundedCornerShape(16.dp)
-                    )
-                    .background(
-                        Color.Black.copy(
-                            alpha = 0.70f
-                        )
-                    )
-                    .padding(
-                        horizontal = 18.dp,
-                        vertical = 12.dp
-                    )
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 36.dp, start = 20.dp, end = 20.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(Color.Black.copy(alpha = 0.78f))
+                .padding(horizontal = 20.dp, vertical = 12.dp)
         ) {
-
-            Column(
-                horizontalAlignment =
-                    Alignment.CenterHorizontally
-            ) {
-
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = "🪙 ", fontSize = 16.sp)
+                    Text(
+                        text = if (currentBitmap == null) strings.scanCoinRequired else strings.imageCaptured,
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text =
-                        if (currentBitmap == null)
-                            "Position the onions"
-                        else
-                            "Image captured",
-
-                    color = Color.White,
-
-                    fontSize = 17.sp,
-
-                    fontWeight =
-                        FontWeight.Bold
-                )
-
-                Spacer(
-                    modifier =
-                        Modifier.height(3.dp)
-                )
-
-                Text(
-                    text =
-                        if (currentBitmap == null)
-                            "Keep all onions inside the frame"
-                        else
-                            "Ready for AI inspection",
-
-                    color =
-                        Color(0xFFD9D0DB),
-
+                    text = if (currentBitmap == null) strings.scanCoinInstruction else strings.readyForAi,
+                    color = PyazGreen,
                     fontSize = 12.sp,
-
-                    textAlign =
-                        TextAlign.Center
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
                 )
             }
         }
 
-        // =================================================
-        // SCANNING FRAME
-        // =================================================
-
+        // VIEWFINDER TARGET FRAME
         if (currentBitmap == null) {
-
             Box(
-                modifier =
-                    Modifier
-                        .size(310.dp)
-                        .align(Alignment.Center)
-                        .border(
-                            width = 3.dp,
-                            color = Green,
-                            shape =
-                                RoundedCornerShape(
-                                    32.dp
-                                )
-                        )
+                modifier = Modifier
+                    .size(310.dp)
+                    .align(Alignment.Center)
+                    .border(
+                        width = 3.dp,
+                        color = PyazGreen,
+                        shape = RoundedCornerShape(28.dp)
+                    )
             )
         }
 
-        // =================================================
-        // CLEAR IMAGE
-        // =================================================
-
+        // CLEAR IMAGE BUTTON
         if (currentBitmap != null) {
-
             Box(
-                modifier =
-                    Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(
-                            top = 40.dp,
-                            end = 24.dp
-                        )
-                        .size(46.dp)
-                        .clip(CircleShape)
-                        .background(
-                            Color.Black.copy(
-                                alpha = 0.7f
-                            )
-                        )
-                        .clickable {
-
-                            if (!isAnalyzing) {
-
-                                capturedBitmap = null
-                                galleryBitmap = null
-                                galleryImageUri = null
-                                analysisError = null
-                            }
-                        },
-
-                contentAlignment =
-                    Alignment.Center
-            ) {
-
-                Icon(
-                    imageVector =
-                        Icons.Default.Close,
-
-                    contentDescription =
-                        "Clear image",
-
-                    tint =
-                        Color.White,
-
-                    modifier =
-                        Modifier.size(24.dp)
-                )
-            }
-        }
-
-        // =================================================
-        // ERROR MESSAGE
-        // =================================================
-
-        if (
-            analysisError != null &&
-            !isAnalyzing
-        ) {
-
-            Box(
-                modifier =
-                    Modifier
-                        .align(Alignment.Center)
-                        .padding(
-                            horizontal = 32.dp
-                        )
-                        .clip(
-                            RoundedCornerShape(16.dp)
-                        )
-                        .background(
-                            Color.Black.copy(
-                                alpha = 0.85f
-                            )
-                        )
-                        .padding(20.dp),
-
-                contentAlignment =
-                    Alignment.Center
-            ) {
-
-                Text(
-                    text =
-                        analysisError!!,
-
-                    color = Color.White,
-
-                    fontSize = 15.sp,
-
-                    fontWeight =
-                        FontWeight.Medium,
-
-                    textAlign =
-                        TextAlign.Center
-                )
-            }
-        }
-
-        // =================================================
-        // BOTTOM CONTROLS
-        // =================================================
-
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .padding(
-                        start = 28.dp,
-                        end = 28.dp,
-                        bottom = 36.dp
-                    ),
-
-            horizontalArrangement =
-                Arrangement.SpaceBetween,
-
-            verticalAlignment =
-                Alignment.CenterVertically
-        ) {
-
-            // ------------------------------------------------
-            // Gallery
-            // ------------------------------------------------
-
-            Box(
-                modifier =
-                    Modifier
-                        .size(54.dp)
-                        .clip(CircleShape)
-                        .background(
-                            Color.White.copy(
-                                alpha = 0.25f
-                            )
-                        )
-                        .clickable {
-
-                            if (!isAnalyzing) {
-
-                                galleryLauncher.launch(
-                                    "image/*"
-                                )
-                            }
-                        },
-
-                contentAlignment =
-                    Alignment.Center
-            ) {
-
-                Icon(
-                    imageVector =
-                        Icons.Default.Collections,
-
-                    contentDescription =
-                        "Gallery",
-
-                    tint =
-                        Color.White,
-
-                    modifier =
-                        Modifier.size(26.dp)
-                )
-            }
-
-            // ------------------------------------------------
-            // Capture / Analyze
-            // ------------------------------------------------
-
-            Box(
-                modifier =
-                    Modifier
-                        .size(82.dp)
-                        .clip(CircleShape)
-                        .background(Color.White)
-                        .clickable {
-
-                            if (isAnalyzing) {
-                                return@clickable
-                            }
-
-                            if (currentBitmap == null) {
-
-                                capturePhoto()
-
-                            } else {
-
-                                analyzeImage()
-                            }
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 40.dp, end = 24.dp)
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.75f))
+                    .clickable {
+                        if (!isAnalyzing) {
+                            capturedBitmap = null
+                            galleryBitmap = null
+                            galleryImageUri = null
+                            analysisError = null
                         }
-                        .padding(6.dp),
-
-                contentAlignment =
-                    Alignment.Center
+                    },
+                contentAlignment = Alignment.Center
             ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = strings.clearImage,
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
 
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .clip(CircleShape)
-                            .background(Purple),
-
-                    contentAlignment =
-                        Alignment.Center
+        // ERROR OVERLAY
+        if (analysisError != null && !isAnalyzing) {
+            Card(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(horizontal = 28.dp),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.90f)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFD94A4A))
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    Text(text = "⚠️", fontSize = 32.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = analysisError!!,
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Button(
+                        onClick = {
+                            analysisError = null
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = PyazPurple),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(text = "Try Again", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
 
+        // BOTTOM ACTION CONTROLS
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.BottomCenter)
+                .padding(start = 28.dp, end = 28.dp, bottom = 36.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Gallery Picker
+            Box(
+                modifier = Modifier
+                    .size(54.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.25f))
+                    .clickable {
+                        if (!isAnalyzing) {
+                            galleryLauncher.launch("image/*")
+                        }
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Collections,
+                    contentDescription = "Gallery",
+                    tint = Color.White,
+                    modifier = Modifier.size(26.dp)
+                )
+            }
+
+            // Capture / Run AI Inspection Button
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(CircleShape)
+                    .background(Color.White)
+                    .clickable {
+                        if (isAnalyzing) return@clickable
+                        if (currentBitmap == null) capturePhoto()
+                        else analyzeImage()
+                    }
+                    .padding(5.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape)
+                        .background(if (currentBitmap != null) PyazGreen else PyazPurple),
+                    contentAlignment = Alignment.Center
+                ) {
                     Icon(
-                        imageVector =
-                            Icons.Default.CameraAlt,
-
-                        contentDescription =
-                            if (currentBitmap == null)
-                                "Capture"
-                            else
-                                "Analyze",
-
-                        tint =
-                            Color.White,
-
-                        modifier =
-                            Modifier.size(30.dp)
+                        imageVector = if (currentBitmap == null) Icons.Default.CameraAlt else Icons.Default.AutoAwesome,
+                        contentDescription = if (currentBitmap == null) strings.scanBtn else strings.continueBtn,
+                        tint = Color.White,
+                        modifier = Modifier.size(30.dp)
                     )
                 }
             }
 
-            // ------------------------------------------------
-            // Flash
-            // ------------------------------------------------
-
+            // Flash Toggle
             Box(
-                modifier =
-                    Modifier
-                        .size(54.dp)
-                        .clip(CircleShape)
-                        .background(
-                            Color.White.copy(
-                                alpha = 0.25f
-                            )
-                        )
-                        .clickable {
-
-                            if (!isAnalyzing) {
-
-                                flashEnabled =
-                                    !flashEnabled
-
-                                camera
-                                    ?.cameraControl
-                                    ?.enableTorch(
-                                        flashEnabled
-                                    )
-                            }
-                        },
-
-                contentAlignment =
-                    Alignment.Center
+                modifier = Modifier
+                    .size(54.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.25f))
+                    .clickable {
+                        if (!isAnalyzing) {
+                            flashEnabled = !flashEnabled
+                            camera?.cameraControl?.enableTorch(flashEnabled)
+                        }
+                    },
+                contentAlignment = Alignment.Center
             ) {
-
                 Icon(
-                    imageVector =
-                        if (flashEnabled)
-                            Icons.Default.FlashOn
-                        else
-                            Icons.Default.FlashOff,
-
-                    contentDescription =
-                        "Flash",
-
-                    tint =
-                        Color.White,
-
-                    modifier =
-                        Modifier.size(26.dp)
+                    imageVector = if (flashEnabled) Icons.Default.FlashOn else Icons.Default.FlashOff,
+                    contentDescription = "Flash",
+                    tint = Color.White,
+                    modifier = Modifier.size(26.dp)
                 )
             }
         }
 
-        // =================================================
-        // AI PROCESSING
-        // =================================================
-
+        // AI PROCESSING OVERLAY
         if (isAnalyzing) {
-
             Box(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .background(
-                            Color.Black.copy(
-                                alpha = 0.88f
-                            )
-                        ),
-
-                contentAlignment =
-                    Alignment.Center
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.90f)),
+                contentAlignment = Alignment.Center
             ) {
-
-                Column(
-                    horizontalAlignment =
-                        Alignment.CenterHorizontally
+                Card(
+                    modifier = Modifier.padding(horizontal = 32.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = PyazPurple),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                 ) {
-
-                    CircularProgressIndicator(
-                        color = Green,
-
-                        strokeWidth = 4.dp,
-
-                        modifier =
-                            Modifier.size(56.dp)
-                    )
-
-                    Spacer(
-                        modifier =
-                            Modifier.height(24.dp)
-                    )
-
-                    Text(
-                        text =
-                            "Analyzing your onions...",
-
-                        color =
-                            Color.White,
-
-                        fontSize = 17.sp,
-
-                        fontWeight =
-                            FontWeight.Bold
-                    )
-
-                    Spacer(
-                        modifier =
-                            Modifier.height(6.dp)
-                    )
-
-                    Text(
-                        text =
-                            "AI is inspecting your image",
-
-                        color =
-                            Color(0xFFD9D0DB),
-
-                        fontSize = 12.sp,
-
-                        textAlign =
-                            TextAlign.Center
-                    )
+                    Column(
+                        modifier = Modifier.padding(28.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator(
+                            color = PyazGreen,
+                            strokeWidth = 4.dp,
+                            modifier = Modifier.size(56.dp)
+                        )
+                        Spacer(modifier = Modifier.height(20.dp))
+                        Text(
+                            text = strings.analyzingOnions,
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = strings.aiInspectingSub,
+                            color = Color(0xFFE4D8E6),
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
             }
         }
     }
 }
 
-
-// =================================================
-// PREVIEW
-// =================================================
-
 @Preview(showBackground = true)
 @Composable
 fun ScanScreenPreview() {
-
     PyazLensTheme {
-
         ScanScreen(
             initialImageUri = null,
             userName = "Test User",
             userPhone = "",
             userAddress = "",
             userProfileId = 1L,
+            currentLanguage = "en",
             onAnalysisComplete = {}
         )
     }

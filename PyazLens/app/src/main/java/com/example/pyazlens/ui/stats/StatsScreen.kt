@@ -1,5 +1,6 @@
 package com.example.pyazlens.ui.stats
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -7,18 +8,24 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -30,366 +37,249 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.pyazlens.data.language.AppStrings
+import com.example.pyazlens.data.language.UiStrings
 import com.example.pyazlens.data.network.HistoryInspection
 import com.example.pyazlens.data.network.RetrofitClient
-
-private val Purple = Color(0xFF511D50)
-private val Background = Color(0xFFFCFAFD)
-private val Green = Color(0xFF73C943)
-private val Gray = Color(0xFF8D8790)
-private val BorderGray = Color(0xFFEAE6EB)
+import com.example.pyazlens.ui.theme.PyazBackground
+import com.example.pyazlens.ui.theme.PyazCardBorder
+import com.example.pyazlens.ui.theme.PyazGradeA
+import com.example.pyazlens.ui.theme.PyazGray
+import com.example.pyazlens.ui.theme.PyazGreen
+import com.example.pyazlens.ui.theme.PyazLensTheme
+import com.example.pyazlens.ui.theme.PyazPurple
+import com.example.pyazlens.ui.theme.PyazReject
+import com.example.pyazlens.ui.theme.PyazURS
 
 @Composable
 fun StatsScreen(
-    userProfileId: Long
+    userProfileId: Long,
+    currentLanguage: String = "en"
 ) {
+    val strings = AppStrings.getStrings(currentLanguage)
 
-    var inspections by remember {
-        mutableStateOf<List<HistoryInspection>>(emptyList())
-    }
-
-    var isLoading by remember {
-        mutableStateOf(true)
-    }
-
-    var error by remember {
-        mutableStateOf<String?>(null)
-    }
+    var inspections by remember { mutableStateOf<List<HistoryInspection>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(userProfileId) {
-
         try {
-
-            val response =
-                RetrofitClient.api.getUserInspections(
-                    userProfileId
-                )
-
+            val response = RetrofitClient.api.getUserInspections(userProfileId)
             if (response.success) {
-
-                inspections =
-                    response.inspections
-
+                inspections = response.inspections
             } else {
-
-                error = "Unable to load statistics."
+                error = strings.noStatsYetTitle
             }
-
         } catch (e: Exception) {
-
-            error =
-                "Failed to load statistics: ${e.message}"
-
+            error = "${strings.connectionFailed}: ${e.message}"
         } finally {
-
             isLoading = false
         }
     }
 
-    val totalInspections =
-        inspections.size
+    val totalInspections = inspections.size
+    val totalOnions = inspections.sumOf { it.total_onions }
+    val gradeA = inspections.sumOf { it.grade_a_count ?: 0 }
+    val urs = inspections.sumOf { it.urs_count ?: 0 }
+    val rejected = inspections.sumOf { it.rejected_count ?: 0 }
 
-    val totalOnions =
-        inspections.sumOf {
-            it.total_onions
-        }
+    val rotten = inspections.sumOf { it.rotten_count ?: 0 }
+    val sprouted = inspections.sumOf { it.sprouted_count ?: 0 }
+    val cutCrack = inspections.sumOf { it.cut_crack_count ?: 0 }
+    val skinDamage = inspections.sumOf { it.skin_damage_count ?: 0 }
+    val sunburned = inspections.sumOf { it.sunburned_count ?: 0 }
+    val misshapen = inspections.sumOf { it.misshapen_count ?: 0 }
 
-    val gradeA =
-        inspections.sumOf {
-            it.grade_a_count ?: 0
-        }
+    val totalDefects = rotten + sprouted + cutCrack + skinDamage + sunburned + misshapen
 
-    val urs =
-        inspections.sumOf {
-            it.urs_count ?: 0
-        }
-
-    val rejected =
-        inspections.sumOf {
-            it.rejected_count ?: 0
-        }
-
-    val rotten =
-        inspections.sumOf {
-            it.rotten_count ?: 0
-        }
-
-    val sprouted =
-        inspections.sumOf {
-            it.sprouted_count ?: 0
-        }
-
-    val cutCrack =
-        inspections.sumOf {
-            it.cut_crack_count ?: 0
-        }
-
-    val skinDamage =
-        inspections.sumOf {
-            it.skin_damage_count ?: 0
-        }
-
-    val sunburned =
-        inspections.sumOf {
-            it.sunburned_count ?: 0
-        }
-
-    val misshapen =
-        inspections.sumOf {
-            it.misshapen_count ?: 0
-        }
-
-    val gradeAPercentage =
-        percentage(
-            gradeA,
-            totalOnions
-        )
-
-    val ursPercentage =
-        percentage(
-            urs,
-            totalOnions
-        )
-
-    val rejectedPercentage =
-        percentage(
-            rejected,
-            totalOnions
-        )
+    val gradeAPercentage = percentage(gradeA, totalOnions)
+    val ursPercentage = percentage(urs, totalOnions)
+    val rejectedPercentage = percentage(rejected, totalOnions)
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(Background)
+            .background(PyazBackground)
             .padding(horizontal = 16.dp),
-
-        verticalArrangement =
-            Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-
+        // 1. TOP TITLE
         item {
+            Spacer(modifier = Modifier.height(12.dp))
 
-            Spacer(
-                modifier = Modifier.height(16.dp)
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.PieChart,
+                    contentDescription = null,
+                    tint = PyazPurple,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = strings.yourStatsTitle,
+                    color = PyazPurple,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "Your Statistics",
-                color = Purple,
-                fontSize = 26.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(
-                modifier = Modifier.height(4.dp)
-            )
-
-            Text(
-                text =
-                    "A complete overview of your onion inspections.",
-                color = Gray,
-                fontSize = 14.sp
+                text = strings.statsSub,
+                color = PyazGray,
+                fontSize = 13.sp
             )
         }
 
         if (isLoading) {
-
             item {
-
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(40.dp),
-                    contentAlignment =
-                        Alignment.Center
+                    modifier = Modifier.fillMaxWidth().padding(40.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-
-                    CircularProgressIndicator(
-                        color = Purple
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(color = PyazPurple, strokeWidth = 3.dp, modifier = Modifier.size(22.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(text = strings.loadingInspections, color = PyazGray, fontSize = 14.sp)
+                    }
                 }
             }
-
-        } else if (error != null) {
-
+        } else if (error != null && totalInspections == 0) {
             item {
-
                 Text(
                     text = error!!,
-                    color = Color(0xFFD94A4A),
+                    color = PyazReject,
                     fontSize = 14.sp
                 )
             }
-
         } else if (inspections.isEmpty()) {
-
             item {
-
-                EmptyStatsCard()
+                EmptyStatsCard(strings = strings)
             }
-
         } else {
-
-            // ==================================================
-            // OVERVIEW
-            // ==================================================
-
+            // OVERVIEW HERO CARDS
             item {
-
-                StatsSectionTitle(
-                    "Overview"
-                )
-
-                Spacer(
-                    modifier = Modifier.height(8.dp)
-                )
+                StatsSectionTitle(strings.overviewTitle)
+                Spacer(modifier = Modifier.height(8.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement =
-                        Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-
                     StatCard(
-                        modifier =
-                            Modifier.weight(1f),
-                        icon =
-                            Icons.Default.Analytics,
-                        title =
-                            "Inspections",
-                        value =
-                            totalInspections.toString()
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Default.Analytics,
+                        title = strings.totalInspectionsCard,
+                        value = totalInspections.toString(),
+                        bgColor = Color(0xFFF3E8F5),
+                        accentColor = PyazPurple
                     )
 
                     StatCard(
-                        modifier =
-                            Modifier.weight(1f),
-                        icon =
-                            Icons.Default.CheckCircle,
-                        title =
-                            "Onions Analyzed",
-                        value =
-                            totalOnions.toString()
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Default.CheckCircle,
+                        title = strings.onionsAnalyzedCard,
+                        value = totalOnions.toString(),
+                        bgColor = Color(0xFFEAF7E5),
+                        accentColor = PyazGradeA
                     )
                 }
             }
 
-            // ==================================================
-            // QUALITY
-            // ==================================================
-
+            // QUALITY DISTRIBUTION
             item {
+                StatsSectionTitle(strings.qualityDistTitle)
+                Spacer(modifier = Modifier.height(8.dp))
 
-                StatsSectionTitle(
-                    "Quality Distribution"
-                )
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    border = BorderStroke(1.dp, PyazCardBorder),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        QualityRow(
+                            title = strings.gradeA,
+                            count = gradeA,
+                            percentage = gradeAPercentage,
+                            icon = Icons.Default.CheckCircle,
+                            iconColor = PyazGradeA,
+                            onionLabel = strings.onionLabel,
+                            barColor = PyazGradeA
+                        )
 
-                Spacer(
-                    modifier = Modifier.height(8.dp)
-                )
+                        Spacer(modifier = Modifier.height(14.dp))
 
-                QualityRow(
-                    title = "Grade A",
-                    count = gradeA,
-                    percentage = gradeAPercentage,
-                    icon = Icons.Default.CheckCircle,
-                    iconColor = Green
-                )
+                        QualityRow(
+                            title = strings.gradeUrs,
+                            count = urs,
+                            percentage = ursPercentage,
+                            icon = Icons.Default.Warning,
+                            iconColor = PyazURS,
+                            onionLabel = strings.onionLabel,
+                            barColor = PyazURS
+                        )
 
-                Spacer(
-                    modifier = Modifier.height(8.dp)
-                )
+                        Spacer(modifier = Modifier.height(14.dp))
 
-                QualityRow(
-                    title = "Grade URS",
-                    count = urs,
-                    percentage = ursPercentage,
-                    icon = Icons.Default.Warning,
-                    iconColor = Color(0xFFD49320)
-                )
-
-                Spacer(
-                    modifier = Modifier.height(8.dp)
-                )
-
-                QualityRow(
-                    title = "Rejected",
-                    count = rejected,
-                    percentage = rejectedPercentage,
-                    icon = Icons.Default.Close,
-                    iconColor = Color(0xFFD94A4A)
-                )
+                        QualityRow(
+                            title = strings.gradeReject,
+                            count = rejected,
+                            percentage = rejectedPercentage,
+                            icon = Icons.Default.Close,
+                            iconColor = PyazReject,
+                            onionLabel = strings.onionLabel,
+                            barColor = PyazReject
+                        )
+                    }
+                }
             }
 
-            // ==================================================
-            // DEFECTS
-            // ==================================================
-
+            // DEFECT FREQUENCY ANALYSIS
             item {
+                StatsSectionTitle(strings.defectAnalysisTitle)
+                Spacer(modifier = Modifier.height(8.dp))
 
-                StatsSectionTitle(
-                    "Defect Analysis"
-                )
-
-                Spacer(
-                    modifier = Modifier.height(8.dp)
-                )
-
-                DefectRow(
-                    "Rotten",
-                    rotten
-                )
-
-                DefectRow(
-                    "Sprouted",
-                    sprouted
-                )
-
-                DefectRow(
-                    "Cut / Crack",
-                    cutCrack
-                )
-
-                DefectRow(
-                    "Skin Damage",
-                    skinDamage
-                )
-
-                DefectRow(
-                    "Sunburned",
-                    sunburned
-                )
-
-                DefectRow(
-                    "Misshapen",
-                    misshapen
-                )
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    border = BorderStroke(1.dp, PyazCardBorder),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        DefectStatBar(name = strings.defectRotten, count = rotten, totalDefects = totalDefects)
+                        DefectStatBar(name = strings.defectSprouted, count = sprouted, totalDefects = totalDefects)
+                        DefectStatBar(name = strings.defectCutCrack, count = cutCrack, totalDefects = totalDefects)
+                        DefectStatBar(name = strings.defectSkinDamage, count = skinDamage, totalDefects = totalDefects)
+                        DefectStatBar(name = strings.defectSunburned, count = sunburned, totalDefects = totalDefects)
+                        DefectStatBar(name = strings.defectMisshapen, count = misshapen, totalDefects = totalDefects)
+                    }
+                }
             }
 
             item {
-
-                Spacer(
-                    modifier = Modifier.height(12.dp)
-                )
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }
 }
 
 @Composable
-private fun StatsSectionTitle(
-    text: String
-) {
-
+private fun StatsSectionTitle(text: String) {
     Text(
         text = text,
-        color = Purple,
-        fontSize = 18.sp,
+        color = PyazPurple,
+        fontSize = 17.sp,
         fontWeight = FontWeight.ExtraBold
     )
 }
@@ -399,48 +289,54 @@ private fun StatCard(
     modifier: Modifier,
     icon: ImageVector,
     title: String,
-    value: String
+    value: String,
+    bgColor: Color,
+    accentColor: Color
 ) {
-
-    Box(
-        modifier = modifier
-            .height(125.dp)
-            .background(
-                Color.White,
-                RoundedCornerShape(20.dp)
-            )
-            .border(
-                1.dp,
-                BorderGray,
-                RoundedCornerShape(20.dp)
-            )
-            .padding(16.dp)
+    Card(
+        modifier = modifier.height(90.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, PyazCardBorder),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(bgColor),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
 
-        Column {
-
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = Purple,
-                modifier = Modifier.size(25.dp)
-            )
-
-            Spacer(
-                modifier = Modifier.height(12.dp)
-            )
-
-            Text(
-                text = value,
-                color = Purple,
-                fontSize = 27.sp,
-                fontWeight = FontWeight.ExtraBold
-            )
+                Text(
+                    text = value,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = PyazPurple
+                )
+            }
 
             Text(
                 text = title,
-                color = Gray,
-                fontSize = 12.sp
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = PyazGray
             )
         }
     }
@@ -452,160 +348,148 @@ private fun QualityRow(
     count: Int,
     percentage: Double,
     icon: ImageVector,
-    iconColor: Color
+    iconColor: Color,
+    onionLabel: String,
+    barColor: Color
 ) {
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(
-                Color.White,
-                RoundedCornerShape(16.dp)
-            )
-            .border(
-                1.dp,
-                BorderGray,
-                RoundedCornerShape(16.dp)
-            )
-            .padding(14.dp),
-        verticalAlignment =
-            Alignment.CenterVertically
-    ) {
-
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = iconColor,
-            modifier = Modifier.size(24.dp)
-        )
-
-        Spacer(
-            modifier = Modifier.size(12.dp)
-        )
-
-        Column(
-            modifier = Modifier.weight(1f)
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconColor,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = title,
+                    color = PyazPurple,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
 
-            Text(
-                text = title,
-                color = Purple,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Text(
-                text = "$count onions",
-                color = Gray,
-                fontSize = 12.sp
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "$count $onionLabel",
+                    color = PyazGray,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "${percentage.toInt()}%",
+                    color = iconColor,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
         }
 
-        Text(
-            text = "${percentage.toInt()}%",
-            color = Purple,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.ExtraBold
-        )
-    }
-}
+        Spacer(modifier = Modifier.height(6.dp))
 
-@Composable
-private fun DefectRow(
-    title: String,
-    count: Int
-) {
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(
-                vertical = 7.dp
-            ),
-        verticalAlignment =
-            Alignment.CenterVertically
-    ) {
-
-        Text(
-            text = title,
-            color = Purple,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.weight(1f)
-        )
-
-        Text(
-            text = count.toString(),
-            color = Purple,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold
-        )
-    }
-}
-
-@Composable
-private fun EmptyStatsCard() {
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(
-                Color.White,
-                RoundedCornerShape(20.dp)
-            )
-            .border(
-                1.dp,
-                BorderGray,
-                RoundedCornerShape(20.dp)
-            )
-            .padding(30.dp),
-        contentAlignment =
-            Alignment.Center
-    ) {
-
-        Column(
-            horizontalAlignment =
-                Alignment.CenterHorizontally
+        // Visual Progress Bar
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(8.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(Color(0xFFF3EEF4))
         ) {
-
-            Text(
-                text = "📊",
-                fontSize = 36.sp
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(fraction = (percentage / 100.0).toFloat().coerceIn(0f, 1f))
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(barColor)
             )
+        }
+    }
+}
 
-            Spacer(
-                modifier = Modifier.height(10.dp)
+@Composable
+private fun DefectStatBar(
+    name: String,
+    count: Int,
+    totalDefects: Int
+) {
+    val percent = if (totalDefects > 0) (count.toDouble() / totalDefects * 100).toInt() else 0
+
+    Column(modifier = Modifier.padding(vertical = 5.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = name, fontSize = 13.sp, color = Color(0xFF3B3340), fontWeight = FontWeight.Medium)
+            Text(text = "$count ($percent%)", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = if (count > 0) PyazReject else PyazPurple)
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(6.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(Color(0xFFF3EEF4))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(fraction = (percent / 100.0).toFloat().coerceIn(0f, 1f))
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(if (count > 0) PyazReject else PyazPurple.copy(alpha = 0.2f))
             )
+        }
+    }
+}
 
+@Composable
+private fun EmptyStatsCard(strings: UiStrings) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, PyazCardBorder)
+    ) {
+        Column(
+            modifier = Modifier.padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(text = "📊", fontSize = 40.sp)
+            Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "No statistics yet",
-                color = Purple,
+                text = strings.noStatsYetTitle,
+                color = PyazPurple,
                 fontSize = 17.sp,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.ExtraBold
             )
-
-            Spacer(
-                modifier = Modifier.height(4.dp)
-            )
-
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text =
-                    "Complete an inspection to start building your statistics.",
-                color = Gray,
+                text = strings.noStatsYetSub,
+                color = PyazGray,
                 fontSize = 13.sp
             )
         }
     }
 }
 
-private fun percentage(
-    value: Int,
-    total: Int
-): Double {
+private fun percentage(part: Int, total: Int): Double {
+    if (total == 0) return 0.0
+    return (part.toDouble() / total.toDouble()) * 100.0
+}
 
-    if (total <= 0) {
-        return 0.0
+@Preview(showBackground = true)
+@Composable
+fun StatsScreenPreview() {
+    PyazLensTheme {
+        StatsScreen(
+            userProfileId = 1L,
+            currentLanguage = "en"
+        )
     }
-
-    return value * 100.0 / total
 }

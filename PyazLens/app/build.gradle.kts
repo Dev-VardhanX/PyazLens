@@ -36,6 +36,10 @@ android {
     }
 }
 
+configurations.all {
+    exclude(group = "com.intellij", module = "annotations")
+}
+
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
@@ -46,6 +50,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.room3.compiler)
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
@@ -71,4 +76,6 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:34.5.0"))
     implementation("com.google.firebase:firebase-auth")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.10.2")
+
+    implementation("io.coil-kt:coil-compose:2.7.0")
 }

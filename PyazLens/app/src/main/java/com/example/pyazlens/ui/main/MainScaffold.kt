@@ -20,6 +20,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
+
 import com.example.pyazlens.data.network.AnalyzeResponse
 import com.example.pyazlens.data.network.Defect
 import com.example.pyazlens.data.network.DefectSummary
@@ -37,10 +40,12 @@ import com.example.pyazlens.navigation.Screen
 import com.example.pyazlens.ui.components.BottomNavigationBar
 import com.example.pyazlens.ui.history.HistoryScreen
 import com.example.pyazlens.ui.home.HomeScreen
+import com.example.pyazlens.data.profile.ProfileManager
 import com.example.pyazlens.ui.result.InspectionResultScreen
 import com.example.pyazlens.ui.scan.ScanScreen
 import com.example.pyazlens.ui.settings.SettingsScreen
 import com.example.pyazlens.ui.stats.StatsScreen
+import com.example.pyazlens.ui.userdetails.UserDetailsScreen
 
 import kotlinx.coroutines.launch
 
@@ -50,7 +55,10 @@ fun MainScaffold(
     userName: String,
     userPhone: String,
     userAddress: String,
-    userProfileId: Long
+    userProfileId: Long,
+    currentLanguage: String = "en",
+    onLanguageChanged: (String) -> Unit = {},
+    onLogout: () -> Unit = {}
 ) {
 
     // =====================================================
@@ -138,6 +146,7 @@ fun MainScaffold(
             BottomNavigationBar(
 
                 currentRoute = currentRoute,
+                currentLanguage = currentLanguage,
 
                 onItemClick = { route ->
 
@@ -145,7 +154,7 @@ fun MainScaffold(
                     // HOME
                     // -----------------------------------------
 
-                    if (route == Screen.Home.route) {
+                    if (route == Screen.Home.route || route == Screen.Scan.route) {
 
                         uploadedImageUri = null
                         analysisResult = null
@@ -201,6 +210,9 @@ fun MainScaffold(
                     userProfileId =
                         userProfileId,
 
+                    currentLanguage =
+                        currentLanguage,
+
                     onInspectClick = {
 
                         uploadedImageUri = null
@@ -222,6 +234,55 @@ fun MainScaffold(
 
                         mainNavController.navigate(
                             Screen.History.route
+                        )
+                    },
+
+                    onInspectionClick = { inspectionId ->
+
+                        scope.launch {
+
+                            try {
+
+                                val response =
+                                    RetrofitClient.api
+                                        .getInspectionDetails(
+                                            inspectionId
+                                        )
+
+                                if (response.success) {
+
+                                    analysisResult =
+                                        response.inspection
+                                            .toAnalyzeResponse()
+
+                                    mainNavController.navigate(
+                                        Screen.InspectionResult.route
+                                    )
+
+                                } else {
+
+                                    Toast.makeText(
+                                        context,
+                                        "Unable to load inspection",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+
+                            } catch (e: Exception) {
+
+                                Toast.makeText(
+                                    context,
+                                    "Failed to load inspection: ${e.message}",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        }
+                    },
+
+                    onProfileClick = {
+
+                        mainNavController.navigate(
+                            Screen.UserDetails.route
                         )
                     }
                 )
@@ -253,6 +314,9 @@ fun MainScaffold(
                     userProfileId =
                         userProfileId,
 
+                    currentLanguage =
+                        currentLanguage,
+
                     onAnalysisComplete = { result ->
 
                         analysisResult =
@@ -277,7 +341,16 @@ fun MainScaffold(
                 analysisResult?.let { result ->
 
                     InspectionResultScreen(
-                        result = result
+                        result = result,
+                        currentLanguage = currentLanguage,
+                        onDone = {
+                            uploadedImageUri = null
+                            analysisResult = null
+                            mainNavController.navigate(Screen.Home.route) {
+                                popUpTo(Screen.Home.route) { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        }
                     )
                 }
             }
@@ -295,6 +368,9 @@ fun MainScaffold(
 
                     userProfileId =
                         userProfileId,
+
+                    currentLanguage =
+                        currentLanguage,
 
                     onRecordClick = { inspectionId ->
 
@@ -402,7 +478,10 @@ fun MainScaffold(
 
             StatsScreen(
                 userProfileId =
-                    userProfileId
+                    userProfileId,
+
+                currentLanguage =
+                    currentLanguage
             )
         }
 
@@ -429,6 +508,12 @@ fun MainScaffold(
                 userProfileId =
                     userProfileId,
 
+                currentLanguage =
+                    currentLanguage,
+
+                onLanguageChanged =
+                    onLanguageChanged,
+
                 onProfileUpdated = {
                         updatedName,
                         updatedPhone,
@@ -442,6 +527,66 @@ fun MainScaffold(
 
                     currentUserAddress =
                         updatedAddress
+
+                    ProfileManager.saveProfile(
+                        context = context,
+                        profileId = userProfileId,
+                        name = updatedName,
+                        phone = updatedPhone,
+                        address = updatedAddress
+                    )
+                },
+                onLogout = onLogout,
+                onNavigateToProfile = {
+                    mainNavController.navigate(Screen.UserDetails.route)
+                }
+            )
+        }
+
+        // =================================================
+        // USER DETAILS / PROFILE
+        // =================================================
+
+        composable(
+            Screen.UserDetails.route
+        ) {
+            UserDetailsScreen(
+                initialName = currentUserName,
+                initialPhone = currentUserPhone,
+                initialLocation = currentUserAddress,
+                currentLanguage = currentLanguage,
+                onBack = {
+                    mainNavController.popBackStack()
+                },
+                onContinue = { fullName, phone, location ->
+                    currentUserName = fullName.trim()
+                    currentUserPhone = phone.trim()
+                    currentUserAddress = location.trim()
+
+                    ProfileManager.saveProfile(
+                        context = context,
+                        profileId = userProfileId,
+                        name = currentUserName,
+                        phone = currentUserPhone,
+                        address = currentUserAddress
+                    )
+
+                    scope.launch {
+                        try {
+                            val nameReq = currentUserName.toRequestBody("text/plain".toMediaType())
+                            val phoneReq = currentUserPhone.takeIf { it.isNotBlank() }?.toRequestBody("text/plain".toMediaType())
+                            val addressReq = currentUserAddress.takeIf { it.isNotBlank() }?.toRequestBody("text/plain".toMediaType())
+
+                            RetrofitClient.api.updateUserProfile(
+                                userProfileId = userProfileId,
+                                name = nameReq,
+                                phone = phoneReq,
+                                address = addressReq
+                            )
+                        } catch (_: Exception) {}
+                    }
+
+                    mainNavController.popBackStack()
                 }
             )
         }

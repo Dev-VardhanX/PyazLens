@@ -13,13 +13,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,29 +40,26 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.pyazlens.data.language.AppStrings
+import com.example.pyazlens.ui.theme.PyazBackground
+import com.example.pyazlens.ui.theme.PyazCardBorder
+import com.example.pyazlens.ui.theme.PyazGray
 import com.example.pyazlens.ui.theme.PyazLensTheme
+import com.example.pyazlens.ui.theme.PyazPurple
 import kotlinx.coroutines.delay
-
-private val Purple = Color(0xFF511D50)
-private val Background = Color(0xFFFCFAFD)
-private val GrayText = Color(0xFF5F5662)
-private val BorderGray = Color(0xFFE9E5EA)
 
 @Composable
 fun OtpScreen(
     phone: String,
+    currentLanguage: String = "en",
     onBack: () -> Unit,
     onVerify: (String) -> Unit,
     onResend: () -> Unit
 ) {
+    val strings = AppStrings.getStrings(currentLanguage)
 
-    var otp by remember {
-        mutableStateOf("")
-    }
-
-    var secondsRemaining by remember {
-        mutableStateOf(30)
-    }
+    var otp by remember { mutableStateOf("") }
+    var secondsRemaining by remember { mutableStateOf(30) }
 
     LaunchedEffect(secondsRemaining) {
         if (secondsRemaining > 0) {
@@ -71,65 +71,66 @@ fun OtpScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Background)
-            .padding(horizontal = 24.dp, vertical = 32.dp)
+            .background(PyazBackground)
+            .padding(horizontal = 24.dp, vertical = 28.dp)
     ) {
-
+        // Back Button
         Box(
             modifier = Modifier
-                .size(40.dp)
+                .size(42.dp)
                 .clip(CircleShape)
                 .background(Color.White)
-                .border(
-                    1.dp,
-                    BorderGray,
-                    CircleShape
-                )
-                .clickable {
-                    onBack()
-                },
+                .border(1.dp, PyazCardBorder, CircleShape)
+                .clickable { onBack() },
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = Icons.Default.ArrowBack,
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Back",
-                tint = Color(0xFF9BA0AA),
+                tint = PyazPurple,
                 modifier = Modifier.size(20.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(28.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = "Verify your phone",
-            color = Purple,
-            fontSize = 31.sp,
+            text = strings.enterOtpTitle,
+            color = PyazPurple,
+            fontSize = 30.sp,
             fontWeight = FontWeight.ExtraBold
         )
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Enter the 6-digit OTP sent to",
-            color = GrayText,
+            text = strings.enterOtpSub,
+            color = Color(0xFF5F5662),
             fontSize = 15.sp,
             fontWeight = FontWeight.Medium
         )
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        Text(
-            text = phone,
-            color = Purple,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold
-        )
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0xFFF3E8F5))
+                .padding(horizontal = 10.dp, vertical = 4.dp)
+        ) {
+            Text(
+                text = phone,
+                color = PyazPurple,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+        }
 
-        Spacer(modifier = Modifier.height(35.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
         Text(
-            text = "One-Time Password",
-            color = Purple,
+            text = "6-Digit Security Code",
+            color = PyazPurple,
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold
         )
@@ -139,16 +140,11 @@ fun OtpScreen(
         BasicTextField(
             value = otp,
             onValueChange = {
-                if (
-                    it.length <= 6 &&
-                    it.all { character -> character.isDigit() }
-                ) {
+                if (it.length <= 6 && it.all { character -> character.isDigit() }) {
                     otp = it
                 }
             },
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Number
-            ),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             decorationBox = {
@@ -157,31 +153,26 @@ fun OtpScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     repeat(6) { index ->
-
-                        val character =
-                            otp.getOrNull(index)?.toString() ?: ""
-
+                        val character = otp.getOrNull(index)?.toString() ?: ""
+                        val isFocused = index == otp.length || (index == 5 && otp.length == 6)
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .height(58.dp)
+                                .height(56.dp)
                                 .clip(RoundedCornerShape(14.dp))
                                 .background(Color.White)
                                 .border(
-                                    1.dp,
-                                    if (index == otp.length)
-                                        Purple
-                                    else
-                                        BorderGray,
+                                    if (isFocused) 2.dp else 1.dp,
+                                    if (isFocused) PyazPurple else PyazCardBorder,
                                     RoundedCornerShape(14.dp)
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = character,
-                                color = Color(0xFF2D252D),
+                                color = PyazPurple,
                                 fontSize = 22.sp,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.ExtraBold
                             )
                         }
                     }
@@ -193,19 +184,14 @@ fun OtpScreen(
 
         Text(
             text = if (secondsRemaining > 0) {
-                "Resend OTP in ${secondsRemaining}s"
+                "${strings.resendOtpBtn} in ${secondsRemaining}s"
             } else {
-                "Didn't receive the OTP? Resend"
+                strings.resendOtpBtn
             },
-            color = if (secondsRemaining > 0)
-                Color(0xFF96909A)
-            else
-                Purple,
+            color = if (secondsRemaining > 0) PyazGray else PyazPurple,
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.clickable(
-                enabled = secondsRemaining == 0
-            ) {
+            modifier = Modifier.clickable(enabled = secondsRemaining == 0) {
                 otp = ""
                 secondsRemaining = 30
                 onResend()
@@ -214,49 +200,36 @@ fun OtpScreen(
 
         Spacer(modifier = Modifier.weight(1f))
 
-        Box(
+        Button(
+            onClick = { onVerify(otp) },
+            enabled = otp.length == 6,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(48.dp)
-                .clip(RoundedCornerShape(28.dp))
-                .background(
-                    if (otp.length == 6)
-                        Purple
-                    else
-                        Color(0xFFD8D2D8)
-                )
-                .clickable(
-                    enabled = otp.length == 6
-                ) {
-                    onVerify(otp)
-                },
-            contentAlignment = Alignment.Center
+                .height(52.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = PyazPurple,
+                disabledContainerColor = PyazPurple.copy(alpha = 0.4f)
+            )
         ) {
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "Verify & Continue",
+                    text = strings.verifyOtpBtn,
                     color = Color.White,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.ExtraBold
                 )
-
-                Spacer(modifier = Modifier.size(6.dp))
-
+                Spacer(modifier = Modifier.width(8.dp))
                 Icon(
-                    imageVector = Icons.Default.ArrowForward,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = null,
                     tint = Color.White,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
@@ -266,6 +239,7 @@ fun OtpScreenPreview() {
     PyazLensTheme {
         OtpScreen(
             phone = "+91 98765 43210",
+            currentLanguage = "en",
             onBack = {},
             onVerify = {},
             onResend = {}

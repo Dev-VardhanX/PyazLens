@@ -12,7 +12,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.pyazlens.data.language.LanguageManager
 import com.example.pyazlens.data.network.RetrofitClient
+import com.example.pyazlens.data.profile.ProfileManager
 import com.example.pyazlens.ui.language.LanguageScreen
 import com.example.pyazlens.ui.main.MainScaffold
 import com.example.pyazlens.ui.otp.OtpScreen
@@ -59,6 +61,10 @@ fun AppNavigation() {
 
     var userProfileId by remember {
         mutableStateOf<Long?>(null)
+    }
+
+    var currentLanguage by remember {
+        mutableStateOf(LanguageManager.getSavedLanguage(context))
     }
 
     // --------------------------------------------------
@@ -140,9 +146,8 @@ fun AppNavigation() {
                     userProfileId =
                         response.user_profile_id
 
-                    // Use the values returned by backend
                     userName =
-                        response.name ?: userName
+                        response.name.takeIf { !it.isNullOrBlank() } ?: userName
 
                     userPhone =
                         response.phone ?: userPhone
@@ -150,23 +155,25 @@ fun AppNavigation() {
                     userAddress =
                         response.address ?: userAddress
 
+                    ProfileManager.saveProfile(
+                        context = context,
+                        profileId = response.user_profile_id,
+                        name = userName,
+                        phone = userPhone,
+                        address = userAddress
+                    )
+
                     Toast.makeText(
                         context,
                         "Profile verified successfully.",
                         Toast.LENGTH_SHORT
                     ).show()
 
-                    // ------------------------------------------------
-                    // Go to Home
-                    // ------------------------------------------------
-
                     navController.navigate(
                         Screen.Home.route
                     ) {
 
-                        popUpTo(
-                            Screen.Language.route
-                        ) {
+                        popUpTo(0) {
                             inclusive = true
                         }
 
@@ -359,6 +366,67 @@ fun AppNavigation() {
     }
 
     // --------------------------------------------------
+    // STARTUP / SESSION ROUTING DECISION
+    // --------------------------------------------------
+
+    fun proceedAfterLanguageSelection() {
+        val currentUser = firebaseAuth.currentUser
+        val hasProfile = ProfileManager.hasSavedProfile(context)
+
+        if (currentUser != null && hasProfile) {
+            userName = ProfileManager.getUserName(context)
+            userPhone = ProfileManager.getUserPhone(context)
+            userAddress = ProfileManager.getUserAddress(context)
+            userProfileId = ProfileManager.getProfileId(context)
+
+            navController.navigate(Screen.Home.route) {
+                popUpTo(0) { inclusive = true }
+                launchSingleTop = true
+            }
+        } else if (currentUser != null && !hasProfile) {
+            scope.launch {
+                try {
+                    val tokenResult = currentUser.getIdToken(false).await()
+                    val idToken = tokenResult.token
+                    if (!idToken.isNullOrBlank()) {
+                        val response = RetrofitClient.api.authenticateFirebase(
+                            idToken = idToken,
+                            name = "",
+                            address = null
+                        )
+                        if (response.success && response.user_profile_id > 0L) {
+                            val pId = response.user_profile_id
+                            val name = response.name.takeIf { !it.isNullOrBlank() } ?: "User"
+                            val phone = response.phone ?: ""
+                            val addr = response.address ?: ""
+
+                            ProfileManager.saveProfile(context, pId, name, phone, addr)
+                            userProfileId = pId
+                            userName = name
+                            userPhone = phone
+                            userAddress = addr
+
+                            navController.navigate(Screen.Home.route) {
+                                popUpTo(0) { inclusive = true }
+                                launchSingleTop = true
+                            }
+                            return@launch
+                        }
+                    }
+                } catch (_: Exception) {}
+
+                navController.navigate(Screen.UserDetails.route) {
+                    popUpTo(0) { inclusive = true }
+                }
+            }
+        } else {
+            navController.navigate(Screen.UserDetails.route) {
+                popUpTo(0) { inclusive = true }
+            }
+        }
+    }
+
+    // --------------------------------------------------
     // NAVIGATION
     // --------------------------------------------------
 
@@ -378,16 +446,19 @@ fun AppNavigation() {
             SplashScreen(
 
                 onSplashFinished = {
-
-                    navController.navigate(
-                        Screen.Language.route
-                    ) {
-
-                        popUpTo(
-                            Screen.Splash.route
+                    val hasLanguage = LanguageManager.hasSavedLanguage(context)
+                    if (!hasLanguage) {
+                        navController.navigate(
+                            Screen.Language.route
                         ) {
-                            inclusive = true
+                            popUpTo(
+                                Screen.Splash.route
+                            ) {
+                                inclusive = true
+                            }
                         }
+                    } else {
+                        proceedAfterLanguageSelection()
                     }
                 }
             )
@@ -402,12 +473,11 @@ fun AppNavigation() {
         ) {
 
             LanguageScreen(
-
-                onContinue = {
-
-                    navController.navigate(
-                        Screen.UserDetails.route
-                    )
+                currentLanguage = currentLanguage,
+                onContinue = { selectedLangCode ->
+                    LanguageManager.saveLanguage(context, selectedLangCode)
+                    currentLanguage = selectedLangCode
+                    proceedAfterLanguageSelection()
                 }
             )
         }
@@ -421,7 +491,7 @@ fun AppNavigation() {
         ) {
 
             UserDetailsScreen(
-
+                currentLanguage = currentLanguage,
                 onBack = {
 
                     navController.popBackStack()
@@ -451,23 +521,18 @@ fun AppNavigation() {
 
                             try {
 
-                                // --------------------------------------------------
-                                // Firebase Anonymous Authentication
-                                // --------------------------------------------------
+                                var firebaseUser = firebaseAuth.currentUser
 
-                                firebaseAuth
-                                    .signInAnonymously()
-                                    .await()
+                                if (firebaseUser == null) {
+                                    firebaseAuth
+                                        .signInAnonymously()
+                                        .await()
+                                    firebaseUser = firebaseAuth.currentUser
+                                }
 
-                                // --------------------------------------------------
-                                // Get Firebase ID token
-                                // --------------------------------------------------
-
-                                val firebaseUser =
-                                    firebaseAuth.currentUser
-                                        ?: throw Exception(
-                                            "Firebase anonymous user not found."
-                                        )
+                                if (firebaseUser == null) {
+                                    throw Exception("Firebase user authentication failed.")
+                                }
 
                                 val tokenResult =
                                     firebaseUser
@@ -479,10 +544,6 @@ fun AppNavigation() {
                                         ?: throw Exception(
                                             "Unable to get Firebase ID token."
                                         )
-
-                                // --------------------------------------------------
-                                // Create/link PyazLens profile
-                                // --------------------------------------------------
 
                                 val response =
                                     RetrofitClient.api.authenticateFirebase(
@@ -501,7 +562,7 @@ fun AppNavigation() {
                                         response.user_profile_id
 
                                     userName =
-                                        response.name ?: fullName
+                                        response.name.takeIf { !it.isNullOrBlank() } ?: fullName
 
                                     userPhone =
                                         response.phone ?: ""
@@ -509,13 +570,19 @@ fun AppNavigation() {
                                     userAddress =
                                         response.address ?: location
 
+                                    ProfileManager.saveProfile(
+                                        context = context,
+                                        profileId = response.user_profile_id,
+                                        name = userName,
+                                        phone = userPhone,
+                                        address = userAddress
+                                    )
+
                                     navController.navigate(
                                         Screen.Home.route
                                     ) {
 
-                                        popUpTo(
-                                            Screen.Language.route
-                                        ) {
+                                        popUpTo(0) {
                                             inclusive = true
                                         }
 
@@ -563,9 +630,8 @@ fun AppNavigation() {
         ) {
 
             OtpScreen(
-
                 phone = userPhone,
-
+                currentLanguage = currentLanguage,
                 onBack = {
 
                     navController.popBackStack()
@@ -661,18 +727,33 @@ fun AppNavigation() {
             if (profileId != null) {
 
                 MainScaffold(
+                    userName = userName,
+                    userPhone = userPhone,
+                    userAddress = userAddress,
+                    userProfileId = profileId,
+                    currentLanguage = currentLanguage,
+                    onLanguageChanged = { newLang ->
+                        LanguageManager.saveLanguage(context, newLang)
+                        currentLanguage = newLang
+                    },
+                    onLogout = {
+                        scope.launch {
+                            try {
+                                firebaseAuth.signOut()
+                            } catch (_: Exception) {}
+                            ProfileManager.clearProfile(context)
+                            userProfileId = null
+                            userName = ""
+                            userPhone = ""
+                            userAddress = ""
 
-                    userName =
-                        userName,
-
-                    userPhone =
-                        userPhone,
-
-                    userAddress =
-                        userAddress,
-
-                    userProfileId =
-                        profileId
+                            navController.navigate(Screen.UserDetails.route) {
+                                popUpTo(0) {
+                                    inclusive = true
+                                }
+                            }
+                        }
+                    }
                 )
             }
         }

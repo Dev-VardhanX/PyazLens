@@ -54,3 +54,25 @@ backend/key/
 backend/.env
 
 firebase-service-account.json
+
+# =========================================================
+# Local IDE / development files
+# =========================================================
+
+# VS Code
+.vscode/
+
+# Android Studio / Gradle local files
+PyazLens/.gradle-user/
+
+# Android generated build files
+**/build/
+
+# Local machine configuration
+**/local.properties
+
+# Environment / secrets
+.env
+.env.*
+*.jks
+*.keystore

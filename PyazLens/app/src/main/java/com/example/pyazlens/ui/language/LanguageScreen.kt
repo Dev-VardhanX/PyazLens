@@ -1,25 +1,30 @@
 package com.example.pyazlens.ui.language
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -37,243 +42,212 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.pyazlens.R
-import com.example.pyazlens.ui.splash.SplashScreen
+import com.example.pyazlens.data.language.AppStrings
+import com.example.pyazlens.data.language.LanguageManager
+import com.example.pyazlens.ui.theme.PyazBackground
+import com.example.pyazlens.ui.theme.PyazCardBorder
 import com.example.pyazlens.ui.theme.PyazLensTheme
-
-private val Purple = Color(0xff4B1A4B)
-private val LightPurple = Color(0xFFF5EFF6)
-private val Green = Color(0xFF73C943)
-private val BorderPurple = Color(0xFF6A2867)
+import com.example.pyazlens.ui.theme.PyazPurple
 
 @Composable
 fun LanguageScreen(
+    currentLanguage: String = "en",
     onContinue: (String) -> Unit
 ) {
-
-    var selectedLanguage by remember {
-        mutableStateOf("English")
+    var selectedLanguageCode by remember {
+        mutableStateOf(if (currentLanguage == LanguageManager.LANG_HINDI) LanguageManager.LANG_HINDI else LanguageManager.LANG_ENGLISH)
     }
+
+    val strings = AppStrings.getStrings(selectedLanguageCode)
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFFCFAFD))
+            .background(PyazBackground)
             .padding(horizontal = 24.dp, vertical = 32.dp)
     ) {
-
-        // --------------------------------
         // App branding
-        // --------------------------------
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
                     .size(48.dp)
                     .offset(x = (-8).dp)
                     .clip(RoundedCornerShape(5.dp))
-                    .offset(y = (6).dp)
-                    .background(color = Color(0xFFFCFAFD)),
+                    .offset(y = 6.dp)
+                    .background(PyazBackground),
                 contentAlignment = Alignment.Center
             ) {
                 Image(
-                    painter = painterResource(
-                        id = R.drawable.pyazlens_logo
-                    ),
+                    painter = painterResource(id = R.drawable.pyazlens_logo),
                     contentDescription = "PyazLens Logo",
-                    modifier = Modifier
-                        .size(42.dp)
-                        .scale(4f)
+                    modifier = Modifier.size(42.dp).scale(4f)
                 )
             }
 
             Text(
                 text = "PyazLens",
-                color = Purple,
+                color = PyazPurple,
                 fontSize = 24.sp,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.ExtraBold
             )
         }
 
-        Spacer(modifier = Modifier.height(30.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
-        // --------------------------------
         // Heading
-        // --------------------------------
-
         Text(
-            text = "Choose your\nlanguage",
-            color = Purple,
-            fontSize = 30.sp,
-            lineHeight = 26.sp,
+            text = strings.chooseLanguage,
+            color = PyazPurple,
+            fontSize = 32.sp,
+            lineHeight = 36.sp,
             fontWeight = FontWeight.ExtraBold
         )
 
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Select a language to continue",
+            text = strings.selectLanguageSubtitle,
             color = Color(0xFF6F6370),
-            fontSize = 16.sp
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Medium
         )
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        // English
-
-        LanguageOption(
+        // English Option Card
+        LanguageOptionCard(
             language = "English",
-            subtitle = "Default application\nlanguage",
+            subtitle = strings.defaultLanguageSub,
             code = "EN",
-            selected = selectedLanguage == "English",
-            onClick = {
-                selectedLanguage = "English"
-            }
+            flagEmoji = "🇬🇧",
+            selected = selectedLanguageCode == LanguageManager.LANG_ENGLISH,
+            onClick = { selectedLanguageCode = LanguageManager.LANG_ENGLISH }
         )
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // --------------------------------
-        // Hindi
-        // --------------------------------
-
-        LanguageOption(
+        // Hindi Option Card
+        LanguageOptionCard(
             language = "हिंदी",
-            subtitle = "अनुप्रयोग भाषा हिन्दी में बदलें",
+            subtitle = strings.hindiLanguageSub,
             code = "हि",
-            selected = selectedLanguage == "Hindi",
-            onClick = {
-                selectedLanguage = "Hindi"
-            }
+            flagEmoji = "🇮🇳",
+            selected = selectedLanguageCode == LanguageManager.LANG_HINDI,
+            onClick = { selectedLanguageCode = LanguageManager.LANG_HINDI }
         )
 
         Spacer(modifier = Modifier.weight(1f))
 
-        // --------------------------------
-        // Continue button
-        // --------------------------------
-
-        Box(
+        // Continue Button
+        Button(
+            onClick = { onContinue(selectedLanguageCode) },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(48.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .background(Purple)
-                .clickable {
-                    onContinue(selectedLanguage)
-                },
-            contentAlignment = Alignment.Center
+                .height(52.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = PyazPurple)
         ) {
-
-            Text(
-                text = "Continue →",
-                color = Color.White,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = strings.continueBtn,
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
-
 @Composable
-private fun LanguageOption(
+private fun LanguageOptionCard(
     language: String,
     subtitle: String,
     code: String,
+    flagEmoji: String,
     selected: Boolean,
     onClick: () -> Unit
 ) {
-
-    Row(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(119.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(Color.White)
-            .border(
-                width = if (selected) 1.dp else 1.dp,
-                color = if (selected) BorderPurple else Color(0xFFE9E3EA),
-                shape = RoundedCornerShape(16.dp)
-            )
-            .clickable {
-                onClick()
-            }
-            .padding(horizontal = 14.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .clickable { onClick() },
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = androidx.compose.foundation.BorderStroke(
+            width = if (selected) 2.dp else 1.dp,
+            color = if (selected) PyazPurple else PyazCardBorder
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (selected) 4.dp else 1.dp)
     ) {
-
-        // Language code box
-        Box(
+        Row(
             modifier = Modifier
-                .size(60.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(
-                    if (selected) LightPurple
-                    else Color(0xFFFFF8F0)
-                ),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-
-            Text(
-                text = code,
-                color = if (selected) Purple else Color(0xFFF07820),
-                fontSize = 25.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        Spacer(modifier = Modifier.size(14.dp))
-
-        // Language text
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
-
-            Text(
-                text = language,
-                color = Color(0xFF2D252D),
-                fontSize = 18.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-
-            Spacer(modifier = Modifier.height(2.dp))
-
-            Text(
-                text = subtitle,
-                color = Color(0xFF8C828D),
-                fontSize = 14.sp,
-                lineHeight = 15.sp
-            )
-        }
-
-        // Selection indicator
-        Box(
-            modifier = Modifier
-                .size(28.dp)
-                .clip(CircleShape)
-                .background(
-                    if (selected) Purple
-                    else Color.White
-                )
-                .border(
-                    width = if (selected) 0.dp else 1.dp,
-                    color = Color(0xFFE9E3EA),
-                    shape = CircleShape
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-
-            if (selected) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(if (selected) Color(0xFFF5EFF6) else Color(0xFFF7F4F8)),
+                contentAlignment = Alignment.Center
+            ) {
                 Text(
-                    text = "✓",
-                    color = Color.White,
-                    fontSize = 16.sp,
+                    text = flagEmoji,
+                    fontSize = 28.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = language,
+                    color = PyazPurple,
+                    fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                Text(
+                    text = subtitle,
+                    color = Color(0xFF7A6F7C),
+                    fontSize = 12.sp,
+                    lineHeight = 15.sp
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(if (selected) PyazPurple else Color.Transparent)
+                    .border(
+                        width = if (selected) 0.dp else 1.5.dp,
+                        color = PyazCardBorder,
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (selected) {
+                    Text(
+                        text = "✓",
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
             }
         }
     }
@@ -286,4 +260,3 @@ fun LanguageScreenPreview() {
         LanguageScreen(onContinue = {})
     }
 }
-

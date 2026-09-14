@@ -1,5 +1,6 @@
 package com.example.pyazlens.ui.history
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,11 +19,18 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -43,796 +51,534 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.pyazlens.data.language.AppStrings
 import com.example.pyazlens.data.network.HistoryInspection
 import com.example.pyazlens.data.network.RetrofitClient
+import com.example.pyazlens.ui.theme.PyazBackground
+import com.example.pyazlens.ui.theme.PyazCardBorder
+import com.example.pyazlens.ui.theme.PyazGradeA
+import com.example.pyazlens.ui.theme.PyazGray
+import com.example.pyazlens.ui.theme.PyazGreen
 import com.example.pyazlens.ui.theme.PyazLensTheme
-import androidx.compose.ui.tooling.preview.Preview
-
-private val Purple = Color(0xFF511D50)
-private val Background = Color(0xFFFCFAFD)
-private val Green = Color(0xFF73C943)
-private val Gray = Color(0xFF8D8790)
-private val BorderGray = Color(0xFFE9E5EA)
-private val Red = Color(0xFFE05252)
-
-
-// ============================================================
-// HISTORY SCREEN
-// ============================================================
-
+import com.example.pyazlens.ui.theme.PyazPurple
+import com.example.pyazlens.ui.theme.PyazReject
+import com.example.pyazlens.ui.theme.PyazURS
+import java.text.SimpleDateFormat
+import java.util.Locale
+private enum class FilterState {
+    NEUTRAL,
+    INCLUDE,
+    EXCLUDE
+}
 @Composable
 fun HistoryScreen(
     userProfileId: Long,
+    currentLanguage: String = "en",
     onRecordClick: (Int) -> Unit,
     onDeleteRecord: (Int) -> Unit
 ) {
+    val strings = AppStrings.getStrings(currentLanguage)
 
-    var searchQuery by remember {
-        mutableStateOf("")
+    var searchQuery by remember { mutableStateOf("") }
+    var filterStates by remember {
+        mutableStateOf<Map<String, FilterState>>(emptyMap())
     }
-
-    var selectedFilter by remember {
-        mutableStateOf("All")
-    }
-
-    var inspections by remember {
-        mutableStateOf<List<HistoryInspection>>(emptyList())
-    }
-
-    var isLoading by remember {
-        mutableStateOf(true)
-    }
-
-    var errorMessage by remember {
-        mutableStateOf<String?>(null)
-    }
-
-    var recordToDelete by remember {
-        mutableStateOf<HistoryInspection?>(null)
-    }
-
-    var isDeleting by remember {
-        mutableStateOf(false)
-    }
+    var inspections by remember { mutableStateOf<List<HistoryInspection>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var recordToDelete by remember { mutableStateOf<HistoryInspection?>(null) }
 
     val filterOptions = listOf(
-        "All",
-        "Grade A",
-        "Grade URS",
-        "Rejected"
+        strings.filterGradeA,
+        strings.filterGradeUrs,
+        strings.filterRejected
     )
 
-    // ========================================================
-    // LOAD HISTORY
-    // ========================================================
-
     LaunchedEffect(userProfileId) {
-
         isLoading = true
         errorMessage = null
-
         try {
-
-            val response =
-                RetrofitClient.api.getUserInspections(
-                    userProfileId
-                )
-
+            val response = RetrofitClient.api.getUserInspections(userProfileId)
             if (response.success) {
-
-                inspections =
-                    response.inspections
-
+                inspections = response.inspections
             } else {
-
-                errorMessage =
-                    "Unable to load inspection history."
+                errorMessage = strings.noHistoryFound
             }
-
         } catch (e: Exception) {
-
             e.printStackTrace()
-
-            errorMessage =
-                "Connection failed: ${e.message}"
-
+            errorMessage = "${strings.connectionFailed}: ${e.message}"
         } finally {
-
             isLoading = false
         }
     }
 
-    // ========================================================
-    // SEARCH + FILTER
-    // ========================================================
+    val filteredList = inspections.filter { record ->
+        val inspectionId = record.id.toString()
+        val batchId = record.batch_id?.toString() ?: ""
+        val matchesSearch = inspectionId.contains(searchQuery, ignoreCase = true) ||
+                batchId.contains(searchQuery, ignoreCase = true)
 
-    val filteredList =
-        inspections.filter { record ->
+        val grade = record.final_grade?.trim()?.uppercase() ?: ""
+        val matchesFilter = filterOptions.all { filter ->
 
-            val inspectionId =
-                record.id.toString()
+            val state = filterStates[filter] ?: FilterState.NEUTRAL
 
-            val batchId =
-                record.batch_id?.toString()
-                    ?: ""
+            val contains = when (filter) {
+                strings.filterGradeA ->
+                    (record.grade_a_percentage ?: 0.0) > 0.0
 
-            val matchesSearch =
-                inspectionId.contains(
-                    searchQuery,
-                    ignoreCase = true
-                ) ||
-                        batchId.contains(
-                            searchQuery,
-                            ignoreCase = true
-                        )
+                strings.filterGradeUrs ->
+                    (record.urs_percentage ?: 0.0) > 0.0
 
-            val grade =
-                record.final_grade
-                    ?.trim()
-                    ?.uppercase()
-                    ?: ""
+                strings.filterRejected ->
+                    (record.rejected_percentage ?: 0.0) > 0.0
 
-            val matchesFilter =
-                when (selectedFilter) {
+                else -> false
+            }
 
-                    "Grade A" ->
-                        grade == "GRADE A"
-
-                    "Grade URS" ->
-                        grade == "GRADE URS"
-
-                    "Rejected" ->
-                        grade == "REJECT" ||
-                                grade == "REJECTED"
-
-                    else ->
-                        true
-                }
-
-            matchesSearch && matchesFilter
+            when (state) {
+                FilterState.NEUTRAL -> true
+                FilterState.INCLUDE -> contains
+                FilterState.EXCLUDE -> !contains
+            }
         }
 
-    // ========================================================
-    // UI
-    // ========================================================
+        matchesSearch && matchesFilter
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Background)
+            .background(PyazBackground)
             .padding(horizontal = 16.dp)
     ) {
+        Spacer(modifier = Modifier.height(12.dp))
 
-        Spacer(
-            modifier = Modifier.height(16.dp)
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.History,
+                    contentDescription = null,
+                    tint = PyazPurple,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = strings.historyRecordsTitle,
+                    color = PyazPurple,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
 
-        // ====================================================
-        // HEADER
-        // ====================================================
+            Spacer(modifier = Modifier.weight(1f))
 
-        Text(
-            text = "History Records",
-            color = Purple,
-            fontSize = 26.sp,
-            fontWeight = FontWeight.Bold
-        )
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xFFF3E8F5))
+                    .padding(horizontal = 10.dp, vertical = 5.dp)
+            ) {
+                Text(
+                    text = "${filteredList.size} Records",
+                    color = PyazPurple,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
+        }
 
-        Spacer(
-            modifier = Modifier.height(16.dp)
-        )
+        Spacer(modifier = Modifier.height(14.dp))
 
-        // ====================================================
-        // SEARCH
-        // ====================================================
-
+        // SEARCH BAR
         OutlinedTextField(
             value = searchQuery,
-
-            onValueChange = {
-                searchQuery = it
-            },
-
-            placeholder = {
-                Text(
-                    text = "Search by ID or batch..."
-                )
-            },
-
+            onValueChange = { searchQuery = it },
+            placeholder = { Text(text = strings.searchPlaceholder, fontSize = 14.sp) },
             leadingIcon = {
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = "Search",
-                    tint = Purple
+                    tint = PyazPurple,
+                    modifier = Modifier.size(20.dp)
                 )
             },
-
-            modifier =
-                Modifier.fillMaxWidth(),
-
-            shape =
-                RoundedCornerShape(16.dp),
-
-            colors =
-                OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Purple,
-                    unfocusedBorderColor = BorderGray,
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White
-                ),
-
+            trailingIcon = {
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(onClick = { searchQuery = "" }) {
+                        Icon(imageVector = Icons.Default.Close, contentDescription = "Clear", tint = PyazGray)
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = PyazPurple,
+                unfocusedBorderColor = PyazCardBorder,
+                focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White
+            ),
             singleLine = true
         )
 
-        Spacer(
-            modifier = Modifier.height(12.dp)
-        )
+        Spacer(modifier = Modifier.height(10.dp))
 
-        // ====================================================
         // FILTER CHIPS
-        // ====================================================
-
         LazyRow(
-            horizontalArrangement =
-                Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-
             items(filterOptions) { filter ->
 
-                val isSelected =
-                    selectedFilter == filter
+                val state = filterStates[filter] ?: FilterState.NEUTRAL
+
+                val isSelected = state != FilterState.NEUTRAL
+
+                val chipText = when (state) {
+                    FilterState.NEUTRAL -> filter
+                    FilterState.INCLUDE -> "✓ $filter"
+                    FilterState.EXCLUDE -> "✕ $filter"
+                }
+
+                val chipColor = when (state) {
+                    FilterState.NEUTRAL -> PyazPurple
+                    FilterState.INCLUDE -> PyazGradeA
+                    FilterState.EXCLUDE -> PyazReject
+                }
 
                 FilterChip(
-
                     selected = isSelected,
 
                     onClick = {
-                        selectedFilter = filter
+                        val nextState = when (state) {
+                            FilterState.NEUTRAL -> FilterState.INCLUDE
+                            FilterState.INCLUDE -> FilterState.EXCLUDE
+                            FilterState.EXCLUDE -> FilterState.NEUTRAL
+                        }
+
+                        filterStates = if (nextState == FilterState.NEUTRAL) {
+                            filterStates - filter
+                        } else {
+                            filterStates + (filter to nextState)
+                        }
                     },
 
                     label = {
                         Text(
-                            text = filter
+                            text = chipText,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
                         )
                     },
 
-                    colors =
-                        FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Purple,
-                            selectedLabelColor = Color.White,
-                            containerColor = Color.White,
-                            labelColor = Purple
-                        ),
-
-                    shape =
-                        RoundedCornerShape(12.dp)
-                )
-            }
-        }
-
-        Spacer(
-            modifier = Modifier.height(16.dp)
-        )
-
-        // ====================================================
-        // LOADING
-        // ====================================================
-
-        if (isLoading) {
-
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-
-                contentAlignment =
-                    Alignment.Center
-            ) {
-
-                Column(
-                    horizontalAlignment =
-                        Alignment.CenterHorizontally
-                ) {
-
-                    CircularProgressIndicator(
-                        color = Green
-                    )
-
-                    Spacer(
-                        modifier =
-                            Modifier.height(12.dp)
-                    )
-
-                    Text(
-                        text =
-                            "Loading your inspections...",
-
-                        color = Gray,
-
-                        fontSize = 14.sp
-                    )
-                }
-            }
-
-            // ====================================================
-            // ERROR
-            // ====================================================
-
-        } else if (errorMessage != null) {
-
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-
-                contentAlignment =
-                    Alignment.Center
-            ) {
-
-                Column(
-                    horizontalAlignment =
-                        Alignment.CenterHorizontally
-                ) {
-
-                    Text(
-                        text = "⚠️",
-                        fontSize = 42.sp
-                    )
-
-                    Spacer(
-                        modifier =
-                            Modifier.height(8.dp)
-                    )
-
-                    Text(
-                        text =
-                            errorMessage!!,
-
-                        color = Gray,
-
-                        fontSize = 15.sp,
-
-                        fontWeight =
-                            FontWeight.Medium
-                    )
-                }
-            }
-
-            // ====================================================
-            // EMPTY
-            // ====================================================
-
-        } else if (filteredList.isEmpty()) {
-
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-
-                contentAlignment =
-                    Alignment.Center
-            ) {
-
-                Column(
-                    horizontalAlignment =
-                        Alignment.CenterHorizontally
-                ) {
-
-                    Text(
-                        text = "🔍",
-                        fontSize = 42.sp
-                    )
-
-                    Spacer(
-                        modifier =
-                            Modifier.height(8.dp)
-                    )
-
-                    Text(
-                        text =
-                            "No inspection records found",
-
-                        color = Gray,
-
-                        fontSize = 16.sp,
-
-                        fontWeight =
-                            FontWeight.Medium
-                    )
-                }
-            }
-
-            // ====================================================
-            // HISTORY LIST
-            // ====================================================
-
-        } else {
-
-            LazyColumn(
-
-                modifier =
-                    Modifier.weight(1f),
-
-                verticalArrangement =
-                    Arrangement.spacedBy(12.dp),
-
-                contentPadding =
-                    PaddingValues(
-                        bottom = 20.dp
-                    )
-            ) {
-
-                items(
-                    items = filteredList,
-                    key = {
-                        it.id
-                    }
-                ) { record ->
-
-                    HistoryItemCard(
-
-                        record = record,
-
-                        onClick = {
-                            onRecordClick(record.id)
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = when (state) {
+                            FilterState.INCLUDE -> Color(0xFFEAF7E5)
+                            FilterState.EXCLUDE -> Color(0xFFFFE8E8)
+                            FilterState.NEUTRAL -> Color.White
                         },
 
-                        onDelete = {
-                            recordToDelete = record
-                        }
-                    )
-                }
-            }
-        }
-    }
+                        selectedLabelColor = chipColor,
 
-    // ========================================================
-    // DELETE CONFIRMATION
-    // ========================================================
-
-    recordToDelete?.let { record ->
-
-        AlertDialog(
-
-            onDismissRequest = {
-                recordToDelete = null
-            },
-
-            title = {
-                Text(
-                    text = "Delete Inspection?"
-                )
-            },
-
-            text = {
-                Text(
-                    text =
-                        "Are you sure you want to delete inspection #${record.id}?"
-                )
-            },
-
-            confirmButton = {
-
-                TextButton(
-                    onClick = {
-
-                        onDeleteRecord(
-                            record.id
-                        )
-
-                        inspections =
-                            inspections.filter {
-                                it.id != record.id
-                            }
-
-                        recordToDelete = null
-                    }
-                ) {
-
-                    Text(
-                        text = "Delete",
-
-                        color = Red,
-
-                        fontWeight =
-                            FontWeight.Bold
-                    )
-                }
-            },
-
-            dismissButton = {
-
-                TextButton(
-                    onClick = {
-                        recordToDelete = null
-                    }
-                ) {
-
-                    Text(
-                        text = "Cancel"
-                    )
-                }
-            }
-        )
-    }
-}
-
-
-// ============================================================
-// HISTORY CARD
-// ============================================================
-
-@Composable
-private fun HistoryItemCard(
-    record: HistoryInspection,
-    onClick: () -> Unit,
-    onDelete: () -> Unit
-) {
-
-    val grade =
-        record.final_grade
-            ?.trim()
-            ?.uppercase()
-            ?: "UNKNOWN"
-
-    val displayGrade =
-        when (grade) {
-
-            "GRADE A" ->
-                "GRADE A"
-
-            "GRADE URS" ->
-                "GRADE URS"
-
-            "REJECT",
-            "REJECTED" ->
-                "REJECT"
-
-            else ->
-                grade
-        }
-
-    val gradeBackground =
-        when (grade) {
-
-            "GRADE A" ->
-                Color(0xFFEAF7E5)
-
-            "GRADE URS" ->
-                Color(0xFFFFF3DD)
-
-            else ->
-                Color(0xFFFFE8E8)
-        }
-
-    val gradeColor =
-        when (grade) {
-
-            "GRADE A" ->
-                Green
-
-            "GRADE URS" ->
-                Color(0xFFD89425)
-
-            else ->
-                Red
-        }
-
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clip(
-                    RoundedCornerShape(20.dp)
-                )
-                .background(Color.White)
-                .border(
-                    width = 1.dp,
-                    color = BorderGray,
-                    shape =
-                        RoundedCornerShape(20.dp)
-                )
-                .clickable {
-                    onClick()
-                }
-                .padding(14.dp),
-
-        verticalAlignment =
-            Alignment.CenterVertically
-    ) {
-
-        // ====================================================
-        // IMAGE PLACEHOLDER
-        // ====================================================
-
-        Box(
-            modifier =
-                Modifier
-                    .size(60.dp)
-                    .clip(
-                        RoundedCornerShape(16.dp)
-                    )
-                    .background(
-                        Color(0xFFF4ECE8)
+                        containerColor = Color.White,
+                        labelColor = PyazPurple
                     ),
 
-            contentAlignment =
-                Alignment.Center
-        ) {
+                    shape = RoundedCornerShape(10.dp),
 
-            Text(
-                text = "🧅",
-                fontSize = 30.sp
-            )
+                    border = FilterChipDefaults.filterChipBorder(
+                        borderColor = when (state) {
+                            FilterState.INCLUDE -> PyazGradeA
+                            FilterState.EXCLUDE -> PyazReject
+                            FilterState.NEUTRAL -> PyazCardBorder
+                        },
+
+                        selectedBorderColor = chipColor,
+                        enabled = true,
+                        selected = isSelected
+                    )
+                )
+            }
         }
 
-        Spacer(
-            modifier =
-                Modifier.width(14.dp)
-        )
+        Spacer(modifier = Modifier.height(14.dp))
 
-        // ====================================================
-        // DETAILS
-        // ====================================================
-
-        Column(
-            modifier =
-                Modifier.weight(1f)
-        ) {
-
-            Row(
-                modifier =
-                    Modifier.fillMaxWidth(),
-
-                horizontalArrangement =
-                    Arrangement.SpaceBetween,
-
-                verticalAlignment =
-                    Alignment.CenterVertically
+        // CONTENT
+        if (isLoading) {
+            Box(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                contentAlignment = Alignment.Center
             ) {
-
-                Text(
-                    text =
-                        "Inspection #${record.id}",
-
-                    color = Purple,
-
-                    fontSize = 16.sp,
-
-                    fontWeight =
-                        FontWeight.Bold
-                )
-
-                Box(
-                    modifier =
-                        Modifier
-                            .clip(
-                                RoundedCornerShape(8.dp)
-                            )
-                            .background(
-                                gradeBackground
-                            )
-                            .padding(
-                                horizontal = 8.dp,
-                                vertical = 3.dp
-                            )
-                ) {
-
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(color = PyazPurple, strokeWidth = 3.dp, modifier = Modifier.size(22.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(text = strings.loadingInspections, color = PyazGray, fontSize = 14.sp)
+                }
+            }
+        } else if (errorMessage != null) {
+            Box(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(text = "⚠️", fontSize = 40.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text =
-                            displayGrade,
-
-                        color =
-                            gradeColor,
-
-                        fontSize = 9.sp,
-
-                        fontWeight =
-                            FontWeight.ExtraBold
+                        text = errorMessage!!,
+                        color = PyazGray,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
                     )
                 }
             }
-
-            Spacer(
-                modifier =
-                    Modifier.height(4.dp)
-            )
-
-            Text(
-                text =
-                    record.created_at
-                        ?: "Date unavailable",
-
-                color = Gray,
-
-                fontSize = 11.sp
-            )
-
-            Spacer(
-                modifier =
-                    Modifier.height(6.dp)
-            )
-
-            Row(
-                verticalAlignment =
-                    Alignment.CenterVertically
+        } else if (filteredList.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                contentAlignment = Alignment.Center
             ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(text = "🔍", fontSize = 40.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = strings.noHistoryFound,
+                        color = PyazGray,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(bottom = 20.dp)
+            ) {
+                itemsIndexed(
+                    items = filteredList,
+                    key = { _, record -> record.id }
+                ) { _, record ->
 
-                Text(
-                    text =
-                        "${record.total_onions} Onions",
+                    val inspectionNumber =
+                        inspections.size - inspections.indexOfFirst { it.id == record.id }
 
-                    color = Purple,
-
-                    fontSize = 12.sp,
-
-                    fontWeight =
-                        FontWeight.SemiBold
-                )
-
-                Spacer(
-                    modifier =
-                        Modifier.width(10.dp)
-                )
-
-                Text(
-                    text =
-                        "• ${record.rejected_count ?: 0} Rejected",
-
-                    color = Red,
-
-                    fontSize = 12.sp,
-
-                    fontWeight =
-                        FontWeight.Bold
-                )
+                    HistoryItemCard(
+                        record = record,
+                        inspectionNumber = inspectionNumber,
+                        currentLanguage = currentLanguage,
+                        onClick = { onRecordClick(record.id) },
+                        onDelete = { recordToDelete = record }
+                    )
+                }
             }
         }
+    }
 
-        // ====================================================
-        // DELETE
-        // ====================================================
+    // DELETE CONFIRMATION DIALOG
+    recordToDelete?.let { record ->
+        AlertDialog(
+            onDismissRequest = { recordToDelete = null },
+            shape = RoundedCornerShape(20.dp),
+            containerColor = Color.White,
+            title = { Text(text = strings.deleteTitle, color = PyazPurple, fontWeight = FontWeight.Bold) },
+            text = {
+                val deleteText = try {
+                    String.format(strings.deleteConfirmText, record.id)
+                } catch (_: Exception) {
+                    "Delete inspection #${record.id}?"
+                }
+                Text(text = deleteText, color = Color.DarkGray, fontSize = 14.sp)
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDeleteRecord(record.id)
+                        inspections = inspections.filter { it.id != record.id }
+                        recordToDelete = null
+                    }
+                ) {
+                    Text(
+                        text = strings.deleteBtn,
+                        color = PyazReject,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { recordToDelete = null }) {
+                    Text(text = strings.cancelBtn, color = PyazGray)
+                }
+            }
+        )
+    }
+}
 
-        IconButton(
-            onClick = onDelete
+@Composable
+fun HistoryItemCard(
+    record: HistoryInspection,
+    inspectionNumber: Int,
+    currentLanguage: String = "en",
+    onClick: () -> Unit,
+    onDelete: (() -> Unit)? = null
+) {
+    val strings = AppStrings.getStrings(currentLanguage)
+
+    val grade = record.final_grade?.trim()?.uppercase() ?: "UNKNOWN"
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, PyazCardBorder),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            Box(
+                modifier = Modifier
+                    .size(54.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFFF6F0F8)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = "🧅", fontSize = 26.sp)
+            }
 
-            Icon(
-                imageVector =
-                    Icons.Default.Delete,
+            Spacer(modifier = Modifier.width(12.dp))
 
-                contentDescription =
-                    "Delete",
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Inspection #$inspectionNumber",
+                        color = PyazPurple,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
 
-                tint =
-                    Color(0xFFB0BEC5),
+                Spacer(modifier = Modifier.height(2.dp))
 
-                modifier =
-                    Modifier.size(20.dp)
-            )
+                Text(
+                    text = formatInspectionDate(record.created_at),
+                    color = PyazGray,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Column {
+                    val countText = try {
+                        String.format(strings.onionsDetected, record.total_onions)
+                    } catch (_: Exception) {
+                        "${record.total_onions} Onions"
+                    }
+
+                    Text(
+                        text = countText,
+                        color = PyazPurple,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(modifier = Modifier.height(5.dp))
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+
+                        // Grade A
+                        Text(
+                            text = "● ${record.grade_a_percentage?.toInt() ?: 0}% A",
+                            color = PyazGradeA,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        // URS
+                        Text(
+                            text = "● ${record.urs_percentage?.toInt() ?: 0}% URS",
+                            color = PyazURS,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        // Rejected
+                        Text(
+                            text = "● ${record.rejected_percentage?.toInt() ?: 0}% Reject",
+                            color = PyazReject,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            // Actions
+            Row(verticalAlignment = Alignment.CenterVertically) {
+
+                onDelete?.let {
+                    IconButton(
+                        onClick = it,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = strings.deleteBtn,
+                            tint = Color(0xFFD94A4A),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                Icon(
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = PyazGray,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }
 
+private fun formatInspectionDate(dateString: String?): String {
+    if (dateString.isNullOrBlank()) {
+        return "DATE UNKNOWN"
+    }
 
-
-// ============================================================
-// PREVIEW
-// ============================================================
+    return try {
+        val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
+        val outputFormat = SimpleDateFormat("dd MMM yyyy • HH:mm", Locale.US)
+        val date = inputFormat.parse(dateString.substringBefore("."))
+        if (date != null) {
+            outputFormat.format(date).uppercase()
+        } else {
+            dateString
+        }
+    } catch (_: Exception) {
+        dateString
+    }
+}
 
 @Preview(showBackground = true)
 @Composable
-private fun HistoryScreenPreview() {
-
+fun HistoryScreenPreview() {
     PyazLensTheme {
-
         HistoryScreen(
             userProfileId = 1L,
+            currentLanguage = "en",
             onRecordClick = {},
             onDeleteRecord = {}
         )
