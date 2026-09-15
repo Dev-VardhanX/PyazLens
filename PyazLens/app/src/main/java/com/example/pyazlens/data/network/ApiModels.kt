@@ -54,11 +54,23 @@ data class Measurement(
 
 data class OnionResult(
     val id: Int,
+
+    val bbox: List<Int> = emptyList(),
+
+    val segmentation: List<List<Float>> = emptyList(),
+
+    val crop_url: String = "",
+
     val size: OnionSize,
+
     val classification: String,
+
     val defects: List<Defect>,
+
     val probabilities: Probabilities,
+
     val grade: String,
+
     val grade_reason: String
 )
 

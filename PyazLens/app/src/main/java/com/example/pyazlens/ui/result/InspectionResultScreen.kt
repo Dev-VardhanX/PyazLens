@@ -80,10 +80,24 @@ import com.example.pyazlens.ui.theme.PyazPurple
 import com.example.pyazlens.ui.theme.PyazReject
 import com.example.pyazlens.ui.theme.PyazURS
 import kotlin.math.roundToInt
+import android.net.Uri
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.ui.input.pointer.pointerInput
+import coil.compose.AsyncImage
+import android.graphics.BitmapFactory
+import androidx.compose.runtime.LaunchedEffect
+import android.graphics.Bitmap
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.graphics.asImageBitmap
+import com.example.pyazlens.data.network.RetrofitClient
+import coil.request.ImageRequest
+import coil.request.CachePolicy
 
 @Composable
 fun InspectionResultScreen(
     result: AnalyzeResponse,
+    imageUri: Uri?,
     currentLanguage: String = "en",
     onDone: () -> Unit = {}
 ) {
@@ -291,6 +305,128 @@ fun InspectionResultScreen(
 //            }
 //        }
 
+        // 2. AI VISUAL INSPECTION
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color.White
+                ),
+                border = BorderStroke(
+                    1.dp,
+                    PyazCardBorder
+                ),
+                elevation = CardDefaults.cardElevation(
+                    defaultElevation = 1.dp
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp)
+                ) {
+
+                    Text(
+                        text = "AI Visual Inspection",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = PyazPurple
+                    )
+
+                    Spacer(
+                        modifier = Modifier.height(4.dp)
+                    )
+
+                    Text(
+                        text = "Tap an onion to view its detailed result",
+                        fontSize = 12.sp,
+                        color = PyazGray,
+                        fontWeight = FontWeight.Medium
+                    )
+
+                    Spacer(
+                        modifier = Modifier.height(12.dp)
+                    )
+                    OnionInspectionViewer(
+                        imageUri = imageUri,
+                        onions = result.onions,
+                        onOnionClick = { onion ->
+
+                            // For now, expand the matching onion card.
+                            // Individual detail navigation comes next.
+                        }
+                    )
+
+                    Spacer(
+                        modifier = Modifier.height(10.dp)
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(9.dp)
+                                    .clip(CircleShape)
+                                    .background(PyazGradeA)
+                            )
+
+                            Spacer(modifier = Modifier.width(5.dp))
+
+                            Text(
+                                text = "Grade A",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = PyazPurple
+                            )
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(9.dp)
+                                    .clip(CircleShape)
+                                    .background(PyazURS)
+                            )
+
+                            Spacer(modifier = Modifier.width(5.dp))
+
+                            Text(
+                                text = "URS",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = PyazPurple
+                            )
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(9.dp)
+                                    .clip(CircleShape)
+                                    .background(PyazReject)
+                            )
+
+                            Spacer(modifier = Modifier.width(5.dp))
+
+                            Text(
+                                text = "Reject",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = PyazPurple
+                            )
+                        }
+                    }
+                }
+            }
+        }
         // 2. HERO OVERALL OUTCOME CARD
         item {
             val totalOnions = result.total_onions.coerceAtLeast(1)
@@ -937,9 +1073,16 @@ private fun OnionExpandableCard(
     strings: UiStrings
 ) {
     var isExpanded by remember { mutableStateOf(true) }
+    val imageCacheKey = remember {
+        System.currentTimeMillis()
+    }
+    val isRejected =
+        onion.grade.equals("REJECT", ignoreCase = true) ||
+                onion.grade.equals("REJECTED", ignoreCase = true)
 
-    val isRejected = onion.grade.equals("REJECT", ignoreCase = true) || onion.grade.equals("REJECTED", ignoreCase = true)
-    val isGradeA = onion.grade.equals("Grade A", ignoreCase = true) || onion.grade.equals("A", ignoreCase = true)
+    val isGradeA =
+        onion.grade.equals("Grade A", ignoreCase = true) ||
+                onion.grade.equals("A", ignoreCase = true)
 
     val gradeColor = when {
         isRejected -> PyazReject
@@ -953,137 +1096,432 @@ private fun OnionExpandableCard(
         else -> Color(0xFFFFF4D9)
     }
 
-    val displayGrade = AppStrings.translateGrade(onion.grade, strings)
+    val displayGrade =
+        AppStrings.translateGrade(onion.grade, strings)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, PyazCardBorder),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        ),
+        border = BorderStroke(
+            1.dp,
+            PyazCardBorder
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 1.dp
+        )
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            // Header Row (Clickable to toggle expansion)
+
+        Column(
+            modifier = Modifier.padding(14.dp)
+        ) {
+
+            // =====================================================
+            // HEADER
+            // =====================================================
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { isExpanded = !isExpanded },
+                    .clickable {
+                        isExpanded = !isExpanded
+                    },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+
                     Text(
-                        text = "${strings.onionLabel} #${onionNumber.toString().padStart(2, '0')}",
-                        fontSize = 16.sp,
+                        text = "${strings.onionLabel} ${
+                            onionNumber
+                                .toString()
+                                .padStart(2, '0')
+                        }",
+                        fontSize = 17.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = PyazPurple
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Spacer(
+                        modifier = Modifier.width(6.dp)
+                    )
+
                     Icon(
-                        imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        imageVector =
+                            if (isExpanded)
+                                Icons.Default.ExpandLess
+                            else
+                                Icons.Default.ExpandMore,
                         contentDescription = null,
                         tint = PyazGray,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                 }
 
+                // Grade badge
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(
+                            RoundedCornerShape(10.dp)
+                        )
                         .background(gradeBg)
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                        .padding(
+                            horizontal = 11.dp,
+                            vertical = 5.dp
+                        )
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = if (isRejected) Icons.Default.Warning else Icons.Default.CheckCircle,
-                            contentDescription = null,
-                            tint = gradeColor,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = displayGrade,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = gradeColor
-                        )
-                    }
+                    Text(
+                        text = displayGrade,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = gradeColor
+                    )
                 }
             }
 
-            AnimatedVisibility(visible = isExpanded) {
-                Column {
-                    Spacer(modifier = Modifier.height(12.dp))
+            // =====================================================
+            // DETAILS
+            // =====================================================
 
-                    // Size Chips
+            AnimatedVisibility(
+                visible = isExpanded
+            ) {
+
+                Column {
+
+                    Spacer(
+                        modifier = Modifier.height(14.dp)
+                    )
+
+                    // =================================================
+                    // MAIN CONTENT
+                    // IMAGE LEFT + DEFECTS RIGHT
+                    // =================================================
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement =
+                            Arrangement.spacedBy(12.dp),
+                        verticalAlignment =
+                            Alignment.Top
                     ) {
-                        SizeChip(modifier = Modifier.weight(1f), label = strings.diameterLabel, value = "${onion.size.diameter_mm} mm")
-                        SizeChip(modifier = Modifier.weight(1f), label = strings.widthLabel, value = "${onion.size.width_mm} mm")
-                        SizeChip(modifier = Modifier.weight(1f), label = strings.heightLabel, value = "${onion.size.height_mm} mm")
+
+                        // ---------------------------------------------
+                        // CROPPED IMAGE
+                        // ---------------------------------------------
+
+                        Card(
+                            modifier = Modifier
+                                .weight(0.9f)
+                                .aspectRatio(0.92f),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor =
+                                    Color(0xFFF6F3F7)
+                            ),
+                            elevation =
+                                CardDefaults.cardElevation(
+                                    defaultElevation = 0.dp
+                                )
+                        ) {
+
+                            if (onion.crop_url.isNotBlank()) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(LocalContext.current)
+                                        .data(
+                                            RetrofitClient.imageUrl(
+                                                onion.crop_url
+                                            )
+                                        )
+                                        .memoryCachePolicy(CachePolicy.DISABLED)
+                                        .diskCachePolicy(CachePolicy.DISABLED)
+                                        .build(),
+                                    contentDescription = "Onion #$onionNumber",
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(
+                                            RoundedCornerShape(16.dp)
+                                        ),
+                                    contentScale =
+                                        androidx.compose.ui.layout.ContentScale.Fit
+                                )
+
+                            } else {
+
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(
+                                            Color(0xFFF6F3F7)
+                                        ),
+                                    contentAlignment =
+                                        Alignment.Center
+                                ) {
+
+                                    Text(
+                                        text = "Image unavailable",
+                                        fontSize = 11.sp,
+                                        color = PyazGray,
+                                        textAlign =
+                                            TextAlign.Center
+                                    )
+                                }
+                            }
+                        }
+
+                        // ---------------------------------------------
+                        // DEFECTS
+                        // ---------------------------------------------
+
+                        Column(
+                            modifier = Modifier.weight(1.1f)
+                        ) {
+
+                            Text(
+                                text = "Defects",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = PyazPurple
+                            )
+
+                            Spacer(
+                                modifier = Modifier.height(8.dp)
+                            )
+
+                            if (onion.defects.isEmpty()) {
+
+                                Row(
+                                    verticalAlignment =
+                                        Alignment.CenterVertically
+                                ) {
+
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                PyazGradeA
+                                            )
+                                    )
+
+                                    Spacer(
+                                        modifier =
+                                            Modifier.width(7.dp)
+                                    )
+
+                                    Text(
+                                        text =
+                                            strings.noDefectsDetected,
+                                        fontSize = 12.sp,
+                                        fontWeight =
+                                            FontWeight.SemiBold,
+                                        color = PyazGreen
+                                    )
+                                }
+
+                            } else {
+
+                                Column(
+                                    verticalArrangement =
+                                        Arrangement.spacedBy(7.dp)
+                                ) {
+
+                                    onion.defects.forEach { defect ->
+
+                                        val translatedDefect =
+                                            AppStrings.translateDefect(
+                                                defect.name,
+                                                strings
+                                            )
+
+                                        Row(
+                                            verticalAlignment =
+                                                Alignment.Top
+                                        ) {
+
+                                            Text(
+                                                text = "•",
+                                                fontSize = 14.sp,
+                                                fontWeight =
+                                                    FontWeight.Bold,
+                                                color = PyazReject
+                                            )
+
+                                            Spacer(
+                                                modifier =
+                                                    Modifier.width(5.dp)
+                                            )
+
+                                            Column {
+
+                                                Text(
+                                                    text =
+                                                        translatedDefect,
+                                                    fontSize = 12.sp,
+                                                    fontWeight =
+                                                        FontWeight.Bold,
+                                                    color =
+                                                        Color(0xFF332938)
+                                                )
+
+                                                Text(
+                                                    text =
+                                                        "${(defect.confidence * 100).toInt()}% confidence",
+                                                    fontSize = 10.sp,
+                                                    color =
+                                                        PyazGray
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(
+                        modifier = Modifier.height(14.dp)
+                    )
 
-                    // Defects list
-                    if (onion.defects.isEmpty()) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = null,
-                                tint = PyazGreen,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = strings.noDefectsDetected,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = PyazGreen
-                            )
-                        }
-                    } else {
-                        Text(
-                            text = strings.detectedDefectsLabel,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = PyazPurple
+                    // =================================================
+                    // SIZE METRICS
+                    // =================================================
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement =
+                            Arrangement.spacedBy(8.dp)
+                    ) {
+
+                        OnionMeasurementBox(
+                            modifier = Modifier.weight(1f),
+                            label = strings.diameterLabel,
+                            value =
+                                "${String.format(
+                                    "%.1f",
+                                    onion.size.diameter_mm
+                                )} mm"
                         )
 
-                        Spacer(modifier = Modifier.height(4.dp))
+                        OnionMeasurementBox(
+                            modifier = Modifier.weight(1f),
+                            label = strings.widthLabel,
+                            value =
+                                "${String.format(
+                                    "%.1f",
+                                    onion.size.width_mm
+                                )} mm"
+                        )
 
-                        onion.defects.forEach { defect ->
-                            val translatedDefect = AppStrings.translateDefect(defect.name, strings)
-                            Text(
-                                text = "• $translatedDefect (${(defect.confidence * 100).toInt()}% confidence)",
-                                fontSize = 12.sp,
-                                color = PyazReject,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
+                        OnionMeasurementBox(
+                            modifier = Modifier.weight(1f),
+                            label = strings.heightLabel,
+                            value =
+                                "${String.format(
+                                    "%.1f",
+                                    onion.size.height_mm
+                                )} mm"
+                        )
                     }
 
+                    // =================================================
+                    // GRADE REASON
+                    // =================================================
+
                     if (onion.grade_reason.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Spacer(
+                            modifier = Modifier.height(8.dp)
+                        )
+
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFFF7F5F8))
-                                .padding(8.dp)
+                                .clip(
+                                    RoundedCornerShape(10.dp)
+                                )
+                                .background(
+                                    Color(0xFFF7F5F8)
+                                )
+                                .padding(
+                                    horizontal = 10.dp,
+                                    vertical = 8.dp
+                                )
                         ) {
-                            Text(
-                                text = "${strings.pdfReasonLabel}: ${onion.grade_reason}",
-                                fontSize = 11.sp,
-                                color = PyazGray,
-                                lineHeight = 15.sp
-                            )
+
+                            Column {
+
+                                Text(
+                                    text = "Why this grade?",
+                                    fontSize = 11.sp,
+                                    fontWeight =
+                                        FontWeight.ExtraBold,
+                                    color = PyazPurple
+                                )
+
+                                Spacer(
+                                    modifier =
+                                        Modifier.height(3.dp)
+                                )
+
+                                Text(
+                                    text = onion.grade_reason,
+                                    fontSize = 11.sp,
+                                    color = PyazGray,
+                                    lineHeight = 15.sp
+                                )
+                            }
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun OnionMeasurementBox(
+    modifier: Modifier = Modifier,
+    label: String,
+    value: String
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color(0xFFF6F3F7))
+            .padding(
+                horizontal = 6.dp,
+                vertical = 8.dp
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+
+            Text(
+                text = label,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                color = PyazGray
+            )
+
+            Spacer(
+                modifier = Modifier.height(2.dp)
+            )
+
+            Text(
+                text = value,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = PyazPurple
+            )
         }
     }
 }
@@ -1190,7 +1628,8 @@ fun InspectionResultScreenPreview() {
         InspectionResultScreen(
             result = sampleResult,
             currentLanguage = "en",
-            onDone = {}
+            onDone = {},
+            imageUri = null
         )
     }
 }
@@ -1300,6 +1739,312 @@ private fun BatchLegendItem(
                 fontWeight = FontWeight.Medium,
                 color = Color(0xFF665D68)
             )
+        }
+    }
+}
+@Composable
+fun OnionInspectionViewer(
+    imageUri: Uri?,
+    onions: List<OnionResult>,
+    onOnionClick: (OnionResult) -> Unit
+) {
+    if (imageUri == null) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(220.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color(0xFFF6F3F7)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "No image available",
+                color = PyazGray,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
+        return
+    }
+
+    val context = LocalContext.current
+
+    var bitmap by remember(imageUri) {
+        mutableStateOf<Bitmap?>(null)
+    }
+
+    var imageLoadFailed by remember(imageUri) {
+        mutableStateOf(false)
+    }
+
+    LaunchedEffect(imageUri) {
+        try {
+            val loadedBitmap =
+                context.contentResolver
+                    .openInputStream(imageUri)
+                    ?.use { inputStream ->
+                        BitmapFactory.decodeStream(inputStream)
+                    }
+
+            if (loadedBitmap != null) {
+                bitmap = loadedBitmap
+                imageLoadFailed = false
+            } else {
+                imageLoadFailed = true
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            imageLoadFailed = true
+        }
+    }
+
+    if (imageLoadFailed) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(220.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color(0xFFF6F3F7)),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Unable to load image",
+                    color = PyazReject,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = imageUri.toString(),
+                    color = PyazGray,
+                    fontSize = 9.sp,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+
+        return
+    }
+
+    val loadedBitmap = bitmap
+
+    if (loadedBitmap == null) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(220.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color(0xFFF6F3F7)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Loading inspection image...",
+                color = PyazGray,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
+
+        return
+    }
+
+    val imageWidth = loadedBitmap.width
+    val imageHeight = loadedBitmap.height
+
+    /*
+     * IMPORTANT:
+     *
+     * The Box uses the original image aspect ratio.
+     * Therefore the image is always:
+     *
+     * width = maximum available width
+     * height = calculated from original image ratio
+     *
+     * No crop.
+     * No distortion.
+     */
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(
+                imageWidth.toFloat() / imageHeight.toFloat()
+            )
+            .clip(RoundedCornerShape(16.dp))
+    ) {
+
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(
+                    onions,
+                    imageWidth,
+                    imageHeight
+                ) {
+
+                    detectTapGestures { tapOffset ->
+
+                        val scaleX =
+                            size.width / imageWidth.toFloat()
+
+                        val scaleY =
+                            size.height / imageHeight.toFloat()
+
+                        var selectedOnion: OnionResult? = null
+                        var bestDistance = Float.MAX_VALUE
+
+                        onions.forEach { onion ->
+
+                            val points = onion.segmentation
+
+                            if (points.size < 3) {
+                                return@forEach
+                            }
+
+                            /*
+                             * Calculate the center of the segmentation.
+                             */
+                            val centerX =
+                                points
+                                    .map { it[0] }
+                                    .average()
+                                    .toFloat()
+
+                            val centerY =
+                                points
+                                    .map { it[1] }
+                                    .average()
+                                    .toFloat()
+
+                            val scaledX = centerX * scaleX
+                            val scaledY = centerY * scaleY
+
+                            val dx = tapOffset.x - scaledX
+                            val dy = tapOffset.y - scaledY
+
+                            val distance =
+                                (dx * dx) + (dy * dy)
+
+                            if (distance < bestDistance) {
+                                bestDistance = distance
+                                selectedOnion = onion
+                            }
+                        }
+
+                        selectedOnion?.let {
+                            onOnionClick(it)
+                        }
+                    }
+                }
+        ) {
+
+            /*
+             * CRITICAL FIX
+             *
+             * Explicitly resize the ORIGINAL bitmap to exactly
+             * the Canvas dimensions.
+             *
+             * Previously drawImage() could draw the bitmap using
+             * its native pixel dimensions while the segmentation
+             * was scaled to the Canvas.
+             *
+             * Now image + segmentation use EXACTLY the same
+             * coordinate space.
+             */
+            drawImage(
+                image = loadedBitmap.asImageBitmap(),
+                dstSize = androidx.compose.ui.unit.IntSize(
+                    width = size.width.roundToInt(),
+                    height = size.height.roundToInt()
+                )
+            )
+
+            /*
+             * Same transformation is applied to the AI
+             * segmentation coordinates.
+             */
+            val scaleX =
+                size.width / imageWidth.toFloat()
+
+            val scaleY =
+                size.height / imageHeight.toFloat()
+
+            onions.forEach { onion ->
+
+                val points = onion.segmentation
+
+                if (points.size < 3) {
+                    return@forEach
+                }
+
+                val path =
+                    androidx.compose.ui.graphics.Path()
+
+                points.forEachIndexed { index, point ->
+
+                    if (point.size < 2) {
+                        return@forEachIndexed
+                    }
+
+                    val x =
+                        point[0] * scaleX
+
+                    val y =
+                        point[1] * scaleY
+
+                    if (index == 0) {
+                        path.moveTo(x, y)
+                    } else {
+                        path.lineTo(x, y)
+                    }
+                }
+
+                path.close()
+
+                val gradeColor =
+                    when {
+                        onion.grade.equals(
+                            "A",
+                            ignoreCase = true
+                        ) -> PyazGradeA
+
+                        onion.grade.equals(
+                            "Grade A",
+                            ignoreCase = true
+                        ) -> PyazGradeA
+
+                        onion.grade.contains(
+                            "URS",
+                            ignoreCase = true
+                        ) -> PyazURS
+
+                        else -> PyazReject
+                    }
+
+                /*
+                 * Transparent fill
+                 */
+                drawPath(
+                    path = path,
+                    color = gradeColor.copy(alpha = 0.25f)
+                )
+
+                /*
+                 * AI outline
+                 */
+                drawPath(
+                    path = path,
+                    color = gradeColor,
+                    style = Stroke(
+                        width = 4f
+                    )
+                )
+            }
         }
     }
 }

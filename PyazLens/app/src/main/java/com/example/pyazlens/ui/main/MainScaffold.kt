@@ -109,6 +109,10 @@ fun MainScaffold(
         mutableStateOf<Uri?>(null)
     }
 
+    var resultImageUri by remember {
+        mutableStateOf<Uri?>(null)
+    }
+
     var analysisResult by remember {
         mutableStateOf<AnalyzeResponse?>(null)
     }
@@ -157,6 +161,7 @@ fun MainScaffold(
                     if (route == Screen.Home.route || route == Screen.Scan.route) {
 
                         uploadedImageUri = null
+                        resultImageUri = null
                         analysisResult = null
                     }
 
@@ -216,6 +221,7 @@ fun MainScaffold(
                     onInspectClick = {
 
                         uploadedImageUri = null
+                        resultImageUri = null
                         analysisResult = null
 
                         mainNavController.navigate(
@@ -317,10 +323,12 @@ fun MainScaffold(
                     currentLanguage =
                         currentLanguage,
 
-                    onAnalysisComplete = { result ->
+                    onAnalysisComplete = { result, imageUri ->
 
-                        analysisResult =
-                            result
+                        // Preserve the EXACT image that was analyzed
+                        resultImageUri = imageUri
+
+                        analysisResult = result
 
                         mainNavController.navigate(
                             Screen.InspectionResult.route
@@ -339,15 +347,19 @@ fun MainScaffold(
             ) {
 
                 analysisResult?.let { result ->
-
                     InspectionResultScreen(
                         result = result,
+                        imageUri = resultImageUri,
                         currentLanguage = currentLanguage,
                         onDone = {
                             uploadedImageUri = null
+                            resultImageUri = null
                             analysisResult = null
+
                             mainNavController.navigate(Screen.Home.route) {
-                                popUpTo(Screen.Home.route) { inclusive = false }
+                                popUpTo(Screen.Home.route) {
+                                    inclusive = false
+                                }
                                 launchSingleTop = true
                             }
                         }

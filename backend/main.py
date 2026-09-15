@@ -1,3 +1,4 @@
+from fastapi.staticfiles import StaticFiles
 from fastapi import (
     FastAPI,
     UploadFile,
@@ -51,6 +52,9 @@ import traceback
 
 BASE_DIR = Path(__file__).resolve().parent
 
+CROPS_DIR = BASE_DIR / "inspection_crops"
+CROPS_DIR.mkdir(exist_ok=True)
+
 # ============================================================
 # FASTAPI APP
 # ============================================================
@@ -60,7 +64,11 @@ app = FastAPI(
     description="Onion detection, classification, grading and history API",
     version="1.0.0"
 )
-
+app.mount(
+    "/inspection-crops",
+    StaticFiles(directory=CROPS_DIR),
+    name="inspection-crops"
+)
 # ============================================================
 # FIREBASE ADMIN SDK
 # ============================================================
@@ -556,6 +564,14 @@ def analyze_onion_image(image):
                 int(y),
                 int(x + w),
                 int(y + h)
+            ],
+
+            "segmentation": [
+                [
+                    round(float(point[0]), 2),
+                    round(float(point[1]), 2)
+                ]
+                for point in points
             ]
         })
 
@@ -966,6 +982,19 @@ async def analyze_batch(
             if crop.size == 0:
                 continue
 
+            crop_filename = f"onion_{onion['id']}.jpg"
+
+            crop_path = CROPS_DIR / crop_filename
+
+            Image.fromarray(crop).save(
+                crop_path,
+                quality=95
+            )
+
+            crop_url = (
+                f"/inspection-crops/{crop_filename}"
+            )
+
             crop_image = Image.fromarray(
                 crop
             )
@@ -985,6 +1014,12 @@ async def analyze_batch(
             onion_result = {
 
                 "id": onion["id"],
+
+                "bbox": onion["bbox"],
+
+                "segmentation": onion["segmentation"],
+
+                "crop_url": crop_url,
 
                 "size": {
 

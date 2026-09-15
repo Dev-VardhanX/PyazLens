@@ -7,54 +7,51 @@ import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
 
-    // private const val BASE_URL = "http://192.168.29.119:8000/"
-    private const val BASE_URL = "http://152.67.10.2:8000/"
+    private const val BASE_URL = "http://192.168.29.119:8000/"
+    //private const val BASE_URL = "http://152.67.10.2:8000/"
+    //private const val BASE_URL = "http://10.98.129.1:8000/"
+    fun imageUrl(path: String): String {
+        return BASE_URL.trimEnd('/') + "/" + path.trimStart('/')
+    }
 
     private val authInterceptor = Interceptor { chain ->
 
         val originalRequest = chain.request()
 
-        val firebaseUser =
-            FirebaseAuth.getInstance().currentUser
+        val firebaseUser = FirebaseAuth.getInstance().currentUser
 
         if (firebaseUser == null) {
-            return@Interceptor chain.proceed(originalRequest)
+            throw IllegalStateException("Firebase user is not authenticated")
         }
 
-        try {
-
-            val tokenResult = runBlocking {
-                firebaseUser.getIdToken(false).await()
-            }
-
-            val idToken = tokenResult.token
-
-            if (idToken.isNullOrBlank()) {
-                return@Interceptor chain.proceed(originalRequest)
-            }
-
-            val authenticatedRequest =
-                originalRequest
-                    .newBuilder()
-                    .addHeader(
-                        "Authorization",
-                        "Bearer $idToken"
-                    )
-                    .build()
-
-            chain.proceed(authenticatedRequest)
-
-        } catch (e: Exception) {
-
-            chain.proceed(originalRequest)
+        val tokenResult = runBlocking {
+            firebaseUser.getIdToken(false).await()
         }
+
+        val idToken = tokenResult.token
+            ?: throw IllegalStateException("Firebase ID token is null")
+
+        val authenticatedRequest = originalRequest
+            .newBuilder()
+            .header(
+                "Authorization",
+                "Bearer $idToken"
+            )
+            .build()
+
+        chain.proceed(authenticatedRequest)
     }
 
     private val okHttpClient =
         OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(120, TimeUnit.SECONDS)
+            .writeTimeout(120, TimeUnit.SECONDS)
+            .callTimeout(120, TimeUnit.SECONDS)
             .addInterceptor(authInterceptor)
             .build()
 

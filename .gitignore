@@ -76,3 +76,4 @@ PyazLens/.gradle-user/
 .env.*
 *.jks
 *.keystore
+backend/inspection_crops/

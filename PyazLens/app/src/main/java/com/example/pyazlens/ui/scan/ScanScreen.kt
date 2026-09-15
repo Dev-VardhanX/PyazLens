@@ -92,7 +92,7 @@ fun ScanScreen(
     userAddress: String,
     userProfileId: Long,
     currentLanguage: String = "en",
-    onAnalysisComplete: (AnalyzeResponse) -> Unit
+    onAnalysisComplete: (AnalyzeResponse, Uri) -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -109,19 +109,37 @@ fun ScanScreen(
 
     // Load initial image coming from Home → Upload
     LaunchedEffect(initialImageUri) {
+
         if (initialImageUri != null) {
+
             try {
-                val bitmap = context.contentResolver.openInputStream(initialImageUri)?.use {
-                    BitmapFactory.decodeStream(it)
-                }
+                val bitmap =
+                    context.contentResolver
+                        .openInputStream(initialImageUri)
+                        ?.use { inputStream ->
+                            BitmapFactory.decodeStream(inputStream)
+                        }
+
                 if (bitmap != null) {
                     galleryBitmap = bitmap
                     galleryImageUri = initialImageUri
                     capturedBitmap = null
                 }
+
             } catch (e: Exception) {
                 e.printStackTrace()
+
+                galleryBitmap = null
+                galleryImageUri = null
+                capturedBitmap = null
             }
+
+        } else {
+
+            // New inspection — completely clear previous image
+            galleryBitmap = null
+            galleryImageUri = null
+            capturedBitmap = null
         }
     }
 
@@ -254,7 +272,7 @@ fun ScanScreen(
 
                 isAnalyzing = false
                 if (response.success) {
-                    onAnalysisComplete(response)
+                    onAnalysisComplete(response, imageUri)
                 } else {
                     analysisError = strings.aiAnalysisFailed
                 }
@@ -573,18 +591,3 @@ fun ScanScreen(
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun ScanScreenPreview() {
-    PyazLensTheme {
-        ScanScreen(
-            initialImageUri = null,
-            userName = "Test User",
-            userPhone = "",
-            userAddress = "",
-            userProfileId = 1L,
-            currentLanguage = "en",
-            onAnalysisComplete = {}
-        )
-    }
-}
