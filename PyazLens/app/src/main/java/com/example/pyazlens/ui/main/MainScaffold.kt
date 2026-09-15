@@ -48,7 +48,7 @@ import com.example.pyazlens.ui.stats.StatsScreen
 import com.example.pyazlens.ui.userdetails.UserDetailsScreen
 
 import kotlinx.coroutines.launch
-
+import android.util.Log
 
 @Composable
 fun MainScaffold(
@@ -64,6 +64,7 @@ fun MainScaffold(
     // =====================================================
     // CURRENT USER STATE
     // =====================================================
+    var resultImageUrl by remember { mutableStateOf<String?>(null) }
 
     var currentUserName by remember {
         mutableStateOf(userName)
@@ -163,6 +164,7 @@ fun MainScaffold(
                         uploadedImageUri = null
                         resultImageUri = null
                         analysisResult = null
+                        resultImageUrl = null
                     }
 
                     mainNavController.navigate(route) {
@@ -223,6 +225,7 @@ fun MainScaffold(
                         uploadedImageUri = null
                         resultImageUri = null
                         analysisResult = null
+                        resultImageUrl = null
 
                         mainNavController.navigate(
                             Screen.Scan.route
@@ -256,15 +259,10 @@ fun MainScaffold(
                                         )
 
                                 if (response.success) {
-
-                                    analysisResult =
-                                        response.inspection
-                                            .toAnalyzeResponse()
-
-                                    mainNavController.navigate(
-                                        Screen.InspectionResult.route
-                                    )
-
+                                    analysisResult = response.inspection.toAnalyzeResponse()
+                                    resultImageUri = null
+                                    resultImageUrl = response.inspection.image_url
+                                    mainNavController.navigate(Screen.InspectionResult.route)
                                 } else {
 
                                     Toast.makeText(
@@ -274,14 +272,28 @@ fun MainScaffold(
                                     ).show()
                                 }
 
+//                            } catch (e: Exception) {
+//
+//                                Toast.makeText(
+//                                    context,
+//                                    "Failed to load inspection: ${e.message}",
+//                                    Toast.LENGTH_LONG
+//                                ).show()
+//                            }
                             } catch (e: Exception) {
 
-                                Toast.makeText(
-                                    context,
-                                    "Failed to load inspection: ${e.message}",
-                                    Toast.LENGTH_LONG
-                                ).show()
-                            }
+                                    Log.e(
+                                        "INSPECTION_ERROR",
+                                        "Failed to load inspection",
+                                        e
+                                    )
+
+                                    Toast.makeText(
+                                        context,
+                                        "ERROR: ${e.message}",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
                         }
                     },
 
@@ -324,15 +336,10 @@ fun MainScaffold(
                         currentLanguage,
 
                     onAnalysisComplete = { result, imageUri ->
-
-                        // Preserve the EXACT image that was analyzed
                         resultImageUri = imageUri
-
+                        resultImageUrl = null
                         analysisResult = result
-
-                        mainNavController.navigate(
-                            Screen.InspectionResult.route
-                        )
+                        mainNavController.navigate(Screen.InspectionResult.route)
                     }
                 )
             }
@@ -350,6 +357,7 @@ fun MainScaffold(
                     InspectionResultScreen(
                         result = result,
                         imageUri = resultImageUri,
+                        imageUrl = resultImageUrl,
                         currentLanguage = currentLanguage,
                         onDone = {
                             uploadedImageUri = null
@@ -397,15 +405,10 @@ fun MainScaffold(
                                         )
 
                                 if (response.success) {
-
-                                    analysisResult =
-                                        response.inspection
-                                            .toAnalyzeResponse()
-
-                                    mainNavController.navigate(
-                                        Screen.InspectionResult.route
-                                    )
-
+                                    analysisResult = response.inspection.toAnalyzeResponse()
+                                    resultImageUri = null
+                                    resultImageUrl = response.inspection.image_url
+                                    mainNavController.navigate(Screen.InspectionResult.route)
                                 } else {
 
                                     Toast.makeText(
@@ -621,6 +624,9 @@ private fun InspectionDetails.toAnalyzeResponse():
         user_profile_id =
             user_profile_id ?: 0L,
 
+        image_url =
+            image_url,
+
         total_onions =
             total_onions,
 
@@ -637,99 +643,45 @@ private fun InspectionDetails.toAnalyzeResponse():
             onions.map { onion ->
 
                 OnionResult(
+                    id = onion.id,
 
-                    id =
-                        onion.id,
+                    bbox = onion.bbox ?: emptyList(),
+                    segmentation = onion.segmentation ?: emptyList(),
+                    crop_url = onion.crop_url ?: "",
 
-                    size =
-                        OnionSize(
-
-                            diameter_mm =
-                                onion.diameter_mm
-                                    ?: 0.0,
-
-                            width_mm =
-                                onion.width_mm
-                                    ?: 0.0,
-
-                            height_mm =
-                                onion.height_mm
-                                    ?: 0.0
-                        ),
+                    size = OnionSize(
+                        diameter_mm = onion.diameter_mm ?: 0.0,
+                        width_mm = onion.width_mm ?: 0.0,
+                        height_mm = onion.height_mm ?: 0.0
+                    ),
 
                     classification =
-
                         if (onion.defects.isEmpty())
-
                             "No Defect"
-
                         else
+                            onion.defects.joinToString(", ") {
+                                it.defect_class ?: "Unknown"
+                            },
 
-                            onion.defects
-                                .joinToString(", ") {
-                                    it.defect_class
-                                },
+                    defects = onion.defects.map { defect ->
+                        Defect(
+                            name = defect.defect_class ?: "Unknown",
+                            confidence = defect.confidence ?: 0.0
+                        )
+                    },
 
-                    defects =
-                        onion.defects.map { defect ->
+                    probabilities = Probabilities(
+                        Rotten = probabilityFor(onion, "Rotten"),
+                        Sprouted = probabilityFor(onion, "Sprouted"),
+                        cutCrack = probabilityFor(onion, "Cut/Crack"),
+                        skinDamage = probabilityFor(onion, "Skin Damage"),
+                        Sunburned = probabilityFor(onion, "Sunburned"),
+                        Misshapen = probabilityFor(onion, "Misshapen")
+                    ),
 
-                            Defect(
+                    grade = onion.grade ?: "Unknown",
 
-                                name =
-                                    defect.defect_class,
-
-                                confidence =
-                                    defect.confidence
-                            )
-                        },
-
-                    probabilities =
-                        Probabilities(
-
-                            Rotten =
-                                probabilityFor(
-                                    onion,
-                                    "Rotten"
-                                ),
-
-                            Sprouted =
-                                probabilityFor(
-                                    onion,
-                                    "Sprouted"
-                                ),
-
-                            cutCrack =
-                                probabilityFor(
-                                    onion,
-                                    "Cut/Crack"
-                                ),
-
-                            skinDamage =
-                                probabilityFor(
-                                    onion,
-                                    "Skin Damage"
-                                ),
-
-                            Sunburned =
-                                probabilityFor(
-                                    onion,
-                                    "Sunburned"
-                                ),
-
-                            Misshapen =
-                                probabilityFor(
-                                    onion,
-                                    "Misshapen"
-                                )
-                        ),
-
-                    grade =
-                        onion.grade
-                            ?: "Unknown",
-
-                    grade_reason =
-                        onion.grade_reason
-                            ?: ""
+                    grade_reason = onion.grade_reason ?: ""
                 )
             },
 

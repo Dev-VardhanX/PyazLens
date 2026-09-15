@@ -68,6 +68,10 @@ import com.example.pyazlens.ui.theme.PyazReject
 import com.example.pyazlens.ui.theme.PyazURS
 import java.text.SimpleDateFormat
 import java.util.Locale
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import androidx.compose.ui.platform.LocalContext
 private enum class FilterState {
     NEUTRAL,
     INCLUDE,
@@ -446,12 +450,27 @@ fun HistoryItemCard(
         ) {
             Box(
                 modifier = Modifier
-                    .size(54.dp)
+                    .size(72.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .background(Color(0xFFF6F0F8)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = "🧅", fontSize = 26.sp)
+                if (!record.image_url.isNullOrBlank()) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(record.image_url)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = "Inspection batch image",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Text(
+                        text = "🧅",
+                        fontSize = 26.sp
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(12.dp))

@@ -93,11 +93,13 @@ import androidx.compose.ui.graphics.asImageBitmap
 import com.example.pyazlens.data.network.RetrofitClient
 import coil.request.ImageRequest
 import coil.request.CachePolicy
+import com.example.pyazlens.data.network.RetrofitClient.imageUrl
 
 @Composable
 fun InspectionResultScreen(
     result: AnalyzeResponse,
     imageUri: Uri?,
+    imageUrl: String? = null,
     currentLanguage: String = "en",
     onDone: () -> Unit = {}
 ) {
@@ -189,7 +191,9 @@ fun InspectionResultScreen(
                         PdfReportGenerator.generateAndShareReport(
                             context = context,
                             result = result,
-                            currentLanguage = currentLanguage
+                            currentLanguage = currentLanguage,
+                            imageUri = imageUri,
+                            imageUrl = imageUrl
                         )
                     },
                     shape = RoundedCornerShape(12.dp),
@@ -348,6 +352,7 @@ fun InspectionResultScreen(
                     )
                     OnionInspectionViewer(
                         imageUri = imageUri,
+                        imageUrl = imageUrl,
                         onions = result.onions,
                         onOnionClick = { onion ->
 
@@ -1745,10 +1750,11 @@ private fun BatchLegendItem(
 @Composable
 fun OnionInspectionViewer(
     imageUri: Uri?,
+    imageUrl: String?,
     onions: List<OnionResult>,
     onOnionClick: (OnionResult) -> Unit
 ) {
-    if (imageUri == null) {
+    if (imageUri == null && imageUrl.isNullOrBlank()) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1764,41 +1770,86 @@ fun OnionInspectionViewer(
                 fontWeight = FontWeight.Medium
             )
         }
+
         return
     }
 
     val context = LocalContext.current
 
-    var bitmap by remember(imageUri) {
+    var bitmap by remember(imageUri, imageUrl) {
         mutableStateOf<Bitmap?>(null)
     }
 
-    var imageLoadFailed by remember(imageUri) {
+    var imageLoadFailed by remember(imageUri, imageUrl) {
         mutableStateOf(false)
     }
 
-    LaunchedEffect(imageUri) {
-        try {
-            val loadedBitmap =
-                context.contentResolver
-                    .openInputStream(imageUri)
-                    ?.use { inputStream ->
-                        BitmapFactory.decodeStream(inputStream)
-                    }
+    LaunchedEffect(imageUri, imageUrl) {
 
-            if (loadedBitmap != null) {
-                bitmap = loadedBitmap
-                imageLoadFailed = false
-            } else {
-                imageLoadFailed = true
+        bitmap = null
+        imageLoadFailed = false
+
+        try {
+
+            // =====================================================
+            // LOCAL IMAGE — FRESH INSPECTION
+            // =====================================================
+
+            if (imageUri != null) {
+
+                val loadedBitmap =
+                    context.contentResolver
+                        .openInputStream(imageUri)
+                        ?.use { inputStream ->
+                            BitmapFactory.decodeStream(inputStream)
+                        }
+
+                if (loadedBitmap != null) {
+                    bitmap = loadedBitmap
+                } else {
+                    imageLoadFailed = true
+                }
+
             }
+
+            // =====================================================
+            // REMOTE IMAGE — HISTORY / HOME
+            // =====================================================
+
+            else if (!imageUrl.isNullOrBlank()) {
+
+                val imageLoader =
+                    coil.ImageLoader(context)
+
+                val request =
+                    ImageRequest.Builder(context)
+                        .data(imageUrl)
+                        .allowHardware(false)
+                        .memoryCachePolicy(CachePolicy.DISABLED)
+                        .diskCachePolicy(CachePolicy.DISABLED)
+                        .build()
+
+                val result =
+                    imageLoader.execute(request)
+
+                val drawable = result.drawable
+
+                if (drawable is android.graphics.drawable.BitmapDrawable) {
+                    bitmap = drawable.bitmap
+                } else {
+                    imageLoadFailed = true
+                }
+            }
+
         } catch (e: Exception) {
+
             e.printStackTrace()
             imageLoadFailed = true
         }
     }
 
     if (imageLoadFailed) {
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1810,6 +1861,7 @@ fun OnionInspectionViewer(
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+
                 Text(
                     text = "Unable to load image",
                     color = PyazReject,
@@ -1817,10 +1869,12 @@ fun OnionInspectionViewer(
                     fontWeight = FontWeight.Bold
                 )
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(
+                    modifier = Modifier.height(4.dp)
+                )
 
                 Text(
-                    text = imageUri.toString(),
+                    text = imageUrl ?: imageUri.toString(),
                     color = PyazGray,
                     fontSize = 9.sp,
                     textAlign = TextAlign.Center
@@ -1834,6 +1888,7 @@ fun OnionInspectionViewer(
     val loadedBitmap = bitmap
 
     if (loadedBitmap == null) {
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1842,6 +1897,7 @@ fun OnionInspectionViewer(
                 .background(Color(0xFFF6F3F7)),
             contentAlignment = Alignment.Center
         ) {
+
             Text(
                 text = "Loading inspection image...",
                 color = PyazGray,
@@ -1855,19 +1911,6 @@ fun OnionInspectionViewer(
 
     val imageWidth = loadedBitmap.width
     val imageHeight = loadedBitmap.height
-
-    /*
-     * IMPORTANT:
-     *
-     * The Box uses the original image aspect ratio.
-     * Therefore the image is always:
-     *
-     * width = maximum available width
-     * height = calculated from original image ratio
-     *
-     * No crop.
-     * No distortion.
-     */
 
     Box(
         modifier = Modifier
@@ -1906,9 +1949,6 @@ fun OnionInspectionViewer(
                                 return@forEach
                             }
 
-                            /*
-                             * Calculate the center of the segmentation.
-                             */
                             val centerX =
                                 points
                                     .map { it[0] }
@@ -1921,11 +1961,17 @@ fun OnionInspectionViewer(
                                     .average()
                                     .toFloat()
 
-                            val scaledX = centerX * scaleX
-                            val scaledY = centerY * scaleY
+                            val scaledX =
+                                centerX * scaleX
 
-                            val dx = tapOffset.x - scaledX
-                            val dy = tapOffset.y - scaledY
+                            val scaledY =
+                                centerY * scaleY
+
+                            val dx =
+                                tapOffset.x - scaledX
+
+                            val dy =
+                                tapOffset.y - scaledY
 
                             val distance =
                                 (dx * dx) + (dy * dy)
@@ -1943,19 +1989,6 @@ fun OnionInspectionViewer(
                 }
         ) {
 
-            /*
-             * CRITICAL FIX
-             *
-             * Explicitly resize the ORIGINAL bitmap to exactly
-             * the Canvas dimensions.
-             *
-             * Previously drawImage() could draw the bitmap using
-             * its native pixel dimensions while the segmentation
-             * was scaled to the Canvas.
-             *
-             * Now image + segmentation use EXACTLY the same
-             * coordinate space.
-             */
             drawImage(
                 image = loadedBitmap.asImageBitmap(),
                 dstSize = androidx.compose.ui.unit.IntSize(
@@ -1964,10 +1997,6 @@ fun OnionInspectionViewer(
                 )
             )
 
-            /*
-             * Same transformation is applied to the AI
-             * segmentation coordinates.
-             */
             val scaleX =
                 size.width / imageWidth.toFloat()
 
@@ -2026,17 +2055,11 @@ fun OnionInspectionViewer(
                         else -> PyazReject
                     }
 
-                /*
-                 * Transparent fill
-                 */
                 drawPath(
                     path = path,
                     color = gradeColor.copy(alpha = 0.25f)
                 )
 
-                /*
-                 * AI outline
-                 */
                 drawPath(
                     path = path,
                     color = gradeColor,

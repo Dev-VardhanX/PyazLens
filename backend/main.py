@@ -48,6 +48,8 @@ import cv2
 import numpy as np
 import torch
 import traceback
+import uuid
+
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -982,7 +984,9 @@ async def analyze_batch(
             if crop.size == 0:
                 continue
 
-            crop_filename = f"onion_{onion['id']}.jpg"
+            inspection_id = uuid.uuid4().hex[:12]
+
+            crop_filename = f"inspection_{inspection_id}_onion_{onion['id']}.jpg"
 
             crop_path = CROPS_DIR / crop_filename
 
@@ -991,9 +995,7 @@ async def analyze_batch(
                 quality=95
             )
 
-            crop_url = (
-                f"/inspection-crops/{crop_filename}"
-            )
+            crop_url = f"/inspection-crops/{crop_filename}"
 
             crop_image = Image.fromarray(
                 crop
@@ -1102,6 +1104,9 @@ async def analyze_batch(
             image_bytes,
             file.content_type
         )
+        image_url = supabase.storage.from_("inspection-images").get_public_url(
+            image_path
+        )
 
         # ----------------------------------------------------
         # Create inspection
@@ -1119,7 +1124,7 @@ async def analyze_batch(
                 "IMAGE",
 
             "image_url":
-                image_path,
+                image_url,
 
             "total_onions":
                 len(onions),
@@ -1215,40 +1220,41 @@ async def analyze_batch(
 
         for onion in onions:
 
-            detected_onion = (
-                create_detected_onion({
+            detected_onion = create_detected_onion({
 
-                    "inspection_id":
-                        inspection["id"],
+                "inspection_id":
+                    inspection["id"],
 
-                    "tracking_id":
-                        onion["id"],
+                "tracking_id":
+                    onion["id"],
 
-                    "diameter_mm":
-                        onion["size"][
-                            "diameter_mm"
-                        ],
+                "diameter_mm":
+                    onion["size"]["diameter_mm"],
 
-                    "width_mm":
-                        onion["size"][
-                            "width_mm"
-                        ],
+                "width_mm":
+                    onion["size"]["width_mm"],
 
-                    "height_mm":
-                        onion["size"][
-                            "height_mm"
-                        ],
+                "height_mm":
+                    onion["size"]["height_mm"],
 
-                    "detection_confidence":
-                        None,
+                "detection_confidence":
+                    None,
 
-                    "grade":
-                        onion["grade"],
+                "grade":
+                    onion["grade"],
 
-                    "grade_reason":
-                        onion["grade_reason"]
-                })
-            )
+                "grade_reason":
+                    onion["grade_reason"],
+
+                "bbox":
+                    onion.get("bbox", []),
+
+                "segmentation":
+                    onion.get("segmentation", []),
+
+                "crop_url":
+                    onion.get("crop_url", "")
+            })
 
             for defect in onion["defects"]:
 

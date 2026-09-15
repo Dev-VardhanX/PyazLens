@@ -26,6 +26,8 @@ data class AnalyzeResponse(
     // ID of the user who owns this inspection
     val user_profile_id: Long,
 
+    val image_url: String? = null,
+
     val total_onions: Int,
 
     val measurement: Measurement,
@@ -241,14 +243,17 @@ data class InspectionOnion(
     val detection_confidence: Double?,
     val grade: String?,
     val grade_reason: String?,
-    val defects: List<InspectionDefect>
+    val bbox: List<Int>?,
+    val segmentation: List<List<Float>>?,
+    val crop_url: String?,
+    val defects: List<InspectionDefect> = emptyList()
 )
 
 data class InspectionDefect(
     val id: Int,
     val detected_onion_id: Int,
-    val defect_class: String,
-    val confidence: Double,
+    val defect_class: String?,
+    val confidence: Double?,
     val created_at: String?
 )
 
