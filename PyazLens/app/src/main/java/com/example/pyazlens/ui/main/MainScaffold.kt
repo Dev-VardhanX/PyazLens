@@ -296,11 +296,9 @@ fun MainScaffold(
                                 }
                         }
                     },
-
                     onProfileClick = {
-
                         mainNavController.navigate(
-                            Screen.UserDetails.route
+                            Screen.Settings.route
                         )
                     }
                 )

@@ -326,7 +326,7 @@ fun ScanScreen(
                 bitmap = currentBitmap.asImageBitmap(),
                 contentDescription = strings.readyForAi,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Fit
             )
         }
 

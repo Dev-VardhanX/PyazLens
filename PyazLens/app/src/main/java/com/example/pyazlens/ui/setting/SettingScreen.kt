@@ -23,10 +23,13 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LocationOn
@@ -39,7 +42,9 @@ import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CenterFocusWeak
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
@@ -105,8 +110,6 @@ fun SettingsScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val strings = AppStrings.getStrings(currentLanguage)
-
-    var notificationsEnabled by remember { mutableStateOf(true) }
 
     var showLogoutConfirmation by remember { mutableStateOf(false) }
     var showProfileDialog by remember { mutableStateOf(false) }
@@ -324,30 +327,6 @@ fun SettingsScreen(
                                 val nextLang = if (currentLanguage == LanguageManager.LANG_HINDI) LanguageManager.LANG_ENGLISH else LanguageManager.LANG_HINDI
                                 onLanguageChanged(nextLang)
                             }
-                        )
-
-                        HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                            thickness = 0.5.dp,
-                            color = Color(0xFFF0E6F2)
-                        )
-
-                        // Notification Row
-                        SettingsRowItem(
-                            icon = Icons.Default.Notifications,
-                            label = strings.reportNotifItem,
-                            subLabel = null,
-                            trailingContent = {
-                                Switch(
-                                    checked = notificationsEnabled,
-                                    onCheckedChange = { notificationsEnabled = it },
-                                    colors = SwitchDefaults.colors(
-                                        checkedThumbColor = Color.White,
-                                        checkedTrackColor = PyazPurple
-                                    )
-                                )
-                            },
-                            onClick = { notificationsEnabled = !notificationsEnabled }
                         )
                     }
                 }
@@ -668,31 +647,347 @@ fun SettingsScreen(
     }
 
     // AI INFO DIALOG
+//    if (showAiDialog) {
+//        AlertDialog(
+//            onDismissRequest = { showAiDialog = false },
+//            title = { Text(strings.aiDialogTitle) },
+//            text = { Text(strings.aiDialogText) },
+//            confirmButton = {
+//                TextButton(onClick = { showAiDialog = false }) {
+//                    Text(text = strings.okBtn, color = PyazPurple, fontWeight = FontWeight.Bold)
+//                }
+//            }
+//        )
+//    }
     if (showAiDialog) {
-        AlertDialog(
-            onDismissRequest = { showAiDialog = false },
-            title = { Text(strings.aiDialogTitle) },
-            text = { Text(strings.aiDialogText) },
-            confirmButton = {
-                TextButton(onClick = { showAiDialog = false }) {
-                    Text(text = strings.okBtn, color = PyazPurple, fontWeight = FontWeight.Bold)
+        Dialog(
+            onDismissRequest = { showAiDialog = false }
+        ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxWidth(0.88f),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color.White
+                )
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+
+                    // Header
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(PyazPurple)
+                            .padding(horizontal = 18.dp, vertical = 16.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(Color.White.copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Memory,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(23.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(14.dp))
+
+                            Column(
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(
+                                    text = strings.aiDialogTitle,
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+
+                                Spacer(modifier = Modifier.height(3.dp))
+
+                                Text(
+                                    text = strings.aiDialogSubtitle,
+                                    fontSize = 13.sp,
+                                    color = Color.White.copy(alpha = 0.85f)
+                                )
+                            }
+
+                            IconButton(
+                                onClick = { showAiDialog = false }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = strings.close,
+                                    tint = Color.White
+                                )
+                            }
+                        }
+                    }
+
+                    // Content
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                            .padding(16.dp)
+                    ) {
+
+                        Text(
+                            text = strings.aiDialogDescription,
+                            fontSize = 14.sp,
+                            lineHeight = 21.sp,
+                            color = Color(0xFF444444)
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        AiInfoCard(
+                            icon = Icons.Default.Visibility,
+                            title = strings.onionDetectionTitle,
+                            description = strings.onionDetectionDescription
+                        )
+
+                        Spacer(modifier = Modifier.height(7.dp))
+
+                        AiInfoCard(
+                            icon = Icons.Default.Straighten,
+                            title = strings.sizeMeasurementTitle,
+                            description = strings.sizeMeasurementDescription
+                        )
+
+                        Spacer(modifier = Modifier.height(7.dp))
+
+                        AiInfoCard(
+                            icon = Icons.Default.Analytics,
+                            title = strings.defectQualityTitle,
+                            description = strings.defectQualityDescription
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        HorizontalDivider(
+                            color = Color(0xFFEAEAEA)
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text(
+                            text = strings.aiFooterTitle,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = PyazPurple
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Text(
+                            text = strings.aiFooterDescription,
+                            fontSize = 12.sp,
+                            color = Color(0xFF777777)
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Button(
+                            onClick = { showAiDialog = false },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(44.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = PyazPurple
+                            )
+                        ) {
+                            Text(
+                                text = strings.gotItBtn,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                    }
                 }
             }
-        )
+        }
     }
-
+    // PRIVACY DIALOG
     // PRIVACY DIALOG
     if (showPrivacyDialog) {
-        AlertDialog(
+        Dialog(
             onDismissRequest = { showPrivacyDialog = false },
-            title = { Text(strings.privacyDialogTitle) },
-            text = { Text(strings.privacyDialogText) },
-            confirmButton = {
-                TextButton(onClick = { showPrivacyDialog = false }) {
-                    Text(text = strings.okBtn, color = PyazPurple, fontWeight = FontWeight.Bold)
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false
+            )
+        ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth(0.88f),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color.White
+                )
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+
+                    // HEADER
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(PyazPurple)
+                            .padding(horizontal = 18.dp, vertical = 16.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(
+                                        Color.White.copy(alpha = 0.15f)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PrivacyTip,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(23.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(14.dp))
+
+                            Column(
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(
+                                    text = strings.privacyDialogTitle,
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+
+                                Spacer(modifier = Modifier.height(3.dp))
+
+                                Text(
+                                    text = strings.privacyDialogDescription,
+                                    fontSize = 13.sp,
+                                    color = Color.White.copy(alpha = 0.85f)
+                                )
+                            }
+
+                            IconButton(
+                                onClick = { showPrivacyDialog = false }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = strings.close,
+                                    tint = Color.White
+                                )
+                            }
+                        }
+                    }
+
+                    // CONTENT
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                            .padding(16.dp)
+                    ) {
+
+                        Text(
+                            text = strings.privacyDialogDescription,
+                            fontSize = 14.sp,
+                            lineHeight = 21.sp,
+                            color = Color(0xFF444444)
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        PrivacyInfoCard(
+                            icon = Icons.Default.Image,
+                            title = strings.inspectionImagesTitle,
+                            description = strings.inspectionImagesDescription
+                        )
+
+                        Spacer(modifier = Modifier.height(7.dp))
+
+                        PrivacyInfoCard(
+                            icon = Icons.Default.Analytics,
+                            title = strings.analysisResultsTitle,
+                            description = strings.analysisResultsDescription
+                        )
+
+                        Spacer(modifier = Modifier.height(7.dp))
+
+                        PrivacyInfoCard(
+                            icon = Icons.Default.Person,
+                            title = strings.yourProfileTitle,
+                            description = strings.yourProfileDescription
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        HorizontalDivider(
+                            color = Color(0xFFEAEAEA)
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text(
+                            text = strings.privacyFooterTitle,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = PyazPurple
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Text(
+                            text = strings.privacyFooterDescription,
+                            fontSize = 12.sp,
+                            lineHeight = 18.sp,
+                            color = Color(0xFF777777)
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Button(
+                            onClick = { showPrivacyDialog = false },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(44.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = PyazPurple
+                            )
+                        ) {
+                            Text(
+                                text = strings.gotItBtn,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                    }
                 }
             }
-        )
+        }
     }
 }
 
@@ -1361,5 +1656,112 @@ private fun GuidePointRow(text: String, isGood: Boolean) {
             fontSize = 13.sp,
             lineHeight = 16.sp
         )
+    }
+}
+@Composable
+private fun AiInfoCard(
+    icon: ImageVector,
+    title: String,
+    description: String
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFFF7F5F9))
+            .padding(11.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(PyazPurple.copy(alpha = 0.10f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = PyazPurple,
+                modifier = Modifier.size(19.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            Text(
+                text = title,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF222222)
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = description,
+                fontSize = 12.sp,
+                lineHeight = 18.sp,
+                color = Color(0xFF666666)
+            )
+        }
+    }
+}
+
+@Composable
+private fun PrivacyInfoCard(
+    icon: ImageVector,
+    title: String,
+    description: String
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFFF7F5F9))
+            .padding(11.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(PyazPurple.copy(alpha = 0.10f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = PyazPurple,
+                modifier = Modifier.size(19.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            Text(
+                text = title,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF222222)
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = description,
+                fontSize = 12.sp,
+                lineHeight = 18.sp,
+                color = Color(0xFF666666)
+            )
+        }
     }
 }

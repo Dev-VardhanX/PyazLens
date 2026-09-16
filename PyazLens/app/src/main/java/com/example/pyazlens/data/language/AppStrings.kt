@@ -170,8 +170,31 @@ data class UiStrings(
     val guideDialogText: String,
     val aiDialogTitle: String,
     val aiDialogText: String,
+    val aiDialogSubtitle: String,
+    val aiDialogDescription: String,
+    val onionDetectionTitle: String,
+    val onionDetectionDescription: String,
+    val sizeMeasurementTitle: String,
+    val sizeMeasurementDescription: String,
+    val defectQualityTitle: String,
+    val defectQualityDescription: String,
+    val aiFooterTitle: String,
+    val aiFooterDescription: String,
+
     val privacyDialogTitle: String,
     val privacyDialogText: String,
+    val privacyDialogSubtitle: String,
+    val privacyDialogDescription: String,
+    val inspectionImagesTitle: String,
+    val inspectionImagesDescription: String,
+    val analysisResultsTitle: String,
+    val analysisResultsDescription: String,
+    val yourProfileTitle: String,
+    val yourProfileDescription: String,
+    val privacyFooterTitle: String,
+    val privacyFooterDescription: String,
+
+    val close: String,
     val okBtn: String,
     val gotItBtn: String,
 
@@ -356,9 +379,42 @@ object AppStrings {
         guideBadPhotoPoint5 = "Multiple overlapping onions or coin far away",
         guideDialogText = "Place a ₹10 coin next to a clean onion on a flat surface in good lighting.",
         aiDialogTitle = "PyazLens AI Engine",
-        aiDialogText = "PyazLens uses computer vision and AI models to detect onions, estimate their size, identify visible defects and assign a quality grade.\n\nThe analysis uses the PyazLens backend and trained onion-quality models.",
+        aiDialogText = "PyazLens uses computer vision and AI models to detect onions, estimate their size, identify visible defects and assign a quality grade.",
+
+        aiDialogSubtitle = "How PyazLens analyzes your onions",
+        aiDialogDescription = "PyazLens uses computer vision and AI models to analyze onions from the captured image.",
+
+        onionDetectionTitle = "Onion Detection",
+        onionDetectionDescription = "The AI identifies onions in the captured image and analyzes the visible onion area.",
+
+        sizeMeasurementTitle = "Size Measurement",
+        sizeMeasurementDescription = "A ₹10 coin is used as a known-size reference to estimate the physical size of the onion.",
+
+        defectQualityTitle = "Defect & Quality Analysis",
+        defectQualityDescription = "The AI analyzes visible defects and uses the inspection information to determine the onion's quality grade.",
+
+        aiFooterTitle = "PyazLens AI",
+        aiFooterDescription = "Computer vision • Onion detection • Quality inspection",
+
         privacyDialogTitle = "Privacy & Data Security",
         privacyDialogText = "Your inspection records are associated with your PyazLens user profile.\n\nInspection images and analysis results are stored by the PyazLens backend for your inspection history.",
+
+        privacyDialogSubtitle = "Your inspection data",
+        privacyDialogDescription = "Your inspection records are associated with your PyazLens user profile.",
+
+        inspectionImagesTitle = "Inspection Images",
+        inspectionImagesDescription = "Images captured during inspection are sent to the PyazLens backend for analysis and stored for your inspection history.",
+
+        analysisResultsTitle = "Analysis Results",
+        analysisResultsDescription = "Results generated from your onion inspections are stored by the PyazLens backend for your inspection history.",
+
+        yourProfileTitle = "Your Profile",
+        yourProfileDescription = "Your inspection records are associated with your PyazLens user profile.",
+
+        privacyFooterTitle = "PyazLens Data & Privacy",
+        privacyFooterDescription = "Inspection images and analysis results are stored by the PyazLens backend for your inspection history.",
+
+        close = "Close",
         okBtn = "OK",
         gotItBtn = "Got it!",
 
@@ -540,11 +596,43 @@ object AppStrings {
         guideDialogText = "अच्छी रोशनी में प्याज़ और ₹10 का सिक्का समतल सतह पर रखें।",
         aiDialogTitle = "PyazLens एआई इंजन",
         aiDialogText = "PyazLens कंप्यूटर विज़न और एआई मॉडल का उपयोग करके प्याज़ का आकार, दोष और गुणवत्ता ग्रेड निर्धारित करता है।",
+
+        aiDialogSubtitle = "PyazLens आपके प्याज़ का विश्लेषण कैसे करता है",
+        aiDialogDescription = "PyazLens कैप्चर की गई तस्वीर से प्याज़ का विश्लेषण करने के लिए कंप्यूटर विज़न और एआई मॉडल का उपयोग करता है।",
+
+        onionDetectionTitle = "प्याज़ की पहचान",
+        onionDetectionDescription = "एआई कैप्चर की गई तस्वीर में प्याज़ की पहचान करता है और दिखाई देने वाले प्याज़ के क्षेत्र का विश्लेषण करता है।",
+
+        sizeMeasurementTitle = "आकार का मापन",
+        sizeMeasurementDescription = "प्याज़ के वास्तविक आकार का अनुमान लगाने के लिए ₹10 के सिक्के को ज्ञात आकार के संदर्भ के रूप में उपयोग किया जाता है।",
+
+        defectQualityTitle = "दोष एवं गुणवत्ता विश्लेषण",
+        defectQualityDescription = "एआई दिखाई देने वाले दोषों का विश्लेषण करता है और जांच की जानकारी के आधार पर प्याज़ की गुणवत्ता का ग्रेड निर्धारित करता है।",
+
+        aiFooterTitle = "PyazLens एआई",
+        aiFooterDescription = "कंप्यूटर विज़न • प्याज़ की पहचान • गुणवत्ता जांच",
+
         privacyDialogTitle = "गोपनीयता एवं सुरक्षा",
-        privacyDialogText = "आपकी जांच रिपोर्ट आपके PyazLens प्रोफ़ाइल से सुरक्षित रूप से जुड़ी हुई हैं।",
+        privacyDialogText = "आपकी जांच रिपोर्ट आपके PyazLens प्रोफ़ाइल से जुड़ी हुई हैं।",
+
+        privacyDialogSubtitle = "आपका जांच डेटा",
+        privacyDialogDescription = "आपकी जांच रिपोर्ट आपके PyazLens उपयोगकर्ता प्रोफ़ाइल से जुड़ी हुई हैं।",
+
+        inspectionImagesTitle = "जांच की तस्वीरें",
+        inspectionImagesDescription = "जांच के दौरान कैप्चर की गई तस्वीरें विश्लेषण के लिए PyazLens बैकएंड पर भेजी जाती हैं और आपकी जांच हिस्ट्री के लिए संग्रहीत की जाती हैं।",
+
+        analysisResultsTitle = "विश्लेषण के परिणाम",
+        analysisResultsDescription = "आपकी प्याज़ जांच से प्राप्त परिणाम आपकी जांच हिस्ट्री के लिए PyazLens बैकएंड द्वारा संग्रहीत किए जाते हैं।",
+
+        yourProfileTitle = "आपकी प्रोफ़ाइल",
+        yourProfileDescription = "आपकी जांच रिपोर्ट आपके PyazLens उपयोगकर्ता प्रोफ़ाइल से जुड़ी हुई हैं।",
+
+        privacyFooterTitle = "PyazLens डेटा एवं गोपनीयता",
+        privacyFooterDescription = "जांच की तस्वीरें और विश्लेषण के परिणाम आपकी जांच हिस्ट्री के लिए PyazLens बैकएंड द्वारा संग्रहीत किए जाते हैं।",
+
+        close = "बंद करें",
         okBtn = "ठीक है",
         gotItBtn = "समझ गए!",
-
         gradeA = "ग्रेड A",
         gradeUrs = "यूआरएस",
         gradeReject = "अस्वीकृत",
