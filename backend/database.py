@@ -113,7 +113,6 @@ def get_user_inspections(user_profile_id):
 
 
 def get_inspection_details(inspection_id):
-
     inspection_response = (
         supabase
         .table("inspections")
@@ -140,7 +139,6 @@ def get_inspection_details(inspection_id):
     onions = onions_response.data
 
     for onion in onions:
-
         defects_response = (
             supabase
             .table("onion_defects")
@@ -150,12 +148,6 @@ def get_inspection_details(inspection_id):
         )
 
         onion["defects"] = defects_response.data
-
-        # Keep visual inspection fields if they exist
-        # in the detected_onions table.
-        onion["bbox"] = onion.get("bbox", [])
-        onion["segmentation"] = onion.get("segmentation", [])
-        onion["crop_url"] = onion.get("crop_url", "")
 
     inspection["onions"] = onions
 
@@ -183,14 +175,12 @@ def upload_inspection_image(image_bytes, content_type="image/jpeg"):
     return file_path
 
 def update_inspection_image_url(inspection_id, image_path):
-    public_url = supabase.storage \
-        .from_("inspection-images") \
-        .get_public_url(image_path)
-
     response = (
         supabase
         .table("inspections")
-        .update({"image_url": public_url})
+        .update({
+            "image_url": image_path
+        })
         .eq("id", inspection_id)
         .execute()
     )

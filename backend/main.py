@@ -1283,8 +1283,6 @@ async def analyze_batch(
             "user_profile_id":
                 user_profile_id,
 
-            "image_url": image_url,
-
             "total_onions":
                 len(onions),
 
