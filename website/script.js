@@ -1,5 +1,5 @@
 const API_BASE_URL = "http://152.67.10.2:8000";
-
+let latestInspectionImageData = null;
 
 // ==========================================
 // FIREBASE ANONYMOUS LOGIN
@@ -566,7 +566,7 @@ async function analyzeImage() {
 
 
     // ==========================================
-    // GET FIREBASE ID TOKEN
+    // FIREBASE AUTHENTICATION
     // ==========================================
 
     let idToken;
@@ -584,19 +584,10 @@ async function analyzeImage() {
         );
 
         result.innerHTML = `
-
             <div class="analysis-error">
-
-                <h3>
-                    Authentication Error
-                </h3>
-
-                <p>
-                    ${error.message}
-                </p>
-
+                <h3>Authentication Error</h3>
+                <p>${error.message}</p>
             </div>
-
         `;
 
         return;
@@ -619,19 +610,10 @@ async function analyzeImage() {
         );
 
         result.innerHTML = `
-
             <div class="analysis-error">
-
-                <h3>
-                    Authentication Failed
-                </h3>
-
-                <p>
-                    ${error.message}
-                </p>
-
+                <h3>Authentication Failed</h3>
+                <p>${error.message}</p>
             </div>
-
         `;
 
         return;
@@ -639,24 +621,30 @@ async function analyzeImage() {
 
 
     // ==========================================
-    // GET SELECTED FILE
+    // GET IMAGE
     // ==========================================
 
     const file =
         imageInput.files[0];
+    // Save uploaded image for PDF
+    const reader = new FileReader();
+    
+    reader.onload = function (e) {
+        latestInspectionImageData = e.target.result;
+    };
+    
+    reader.readAsDataURL(file);
 
-
-    // ==========================================
-    // CREATE FORMDATA
-    // ==========================================
 
     const formData =
         new FormData();
+
 
     formData.append(
         "file",
         file
     );
+
 
     formData.append(
         "name",
@@ -666,54 +654,40 @@ async function analyzeImage() {
 
 
     // ==========================================
-    // AI LOADING ANIMATION
+    // LOADING SCREEN
     // ==========================================
 
     result.innerHTML = `
-
         <div class="ai-loading">
 
             <div class="ai-loading-title">
-
                 <span class="ai-pulse"></span>
-
                 AI ANALYSIS IN PROGRESS
-
             </div>
-
 
             <div class="scan-graph">
-
                 <div class="graph-line"></div>
-
                 <div class="scan-dot"></div>
-
             </div>
-
 
             <h3>
                 Analyzing onion quality...
             </h3>
 
-
             <p>
                 Detecting defects, size and quality
             </p>
 
-
             <div class="progress-container">
-
                 <div class="analysis-progress"></div>
-
             </div>
 
         </div>
-
     `;
 
 
     // ==========================================
-    // SEND IMAGE TO FASTAPI
+    // CALL BACKEND
     // ==========================================
 
     try {
@@ -751,7 +725,6 @@ async function analyzeImage() {
         if (!response.ok) {
 
             result.innerHTML = `
-
                 <div class="analysis-error">
 
                     <h3>
@@ -766,7 +739,6 @@ async function analyzeImage() {
                     </p>
 
                 </div>
-
             `;
 
             return;
@@ -774,7 +746,7 @@ async function analyzeImage() {
 
 
         // ==========================================
-        // SAVE REAL INSPECTION
+        // SAVE LATEST RESULT
         // ==========================================
 
         localStorage.setItem(
@@ -784,103 +756,274 @@ async function analyzeImage() {
 
 
         // ==========================================
-        // GET DATA
+        // GET RESULT DATA
         // ==========================================
 
         const summary =
             data.summary || {};
 
+
         const onions =
             data.onions || [];
 
 
+        const originalImageURL =
+            URL.createObjectURL(file);
+
+
         // ==========================================
-        // RESULT HTML
+        // COUNTS
+        // ==========================================
+
+        const totalOnions =
+            Number(data.total_onions || 0);
+
+
+        const gradeA =
+            Number(summary.grade_a || 0);
+
+
+        const urs =
+            Number(summary.grade_urs || 0);
+
+
+        const rejected =
+            Number(summary.rejected || 0);
+
+
+        const gradeAPercentage =
+            calculatePercentage(
+                gradeA,
+                totalOnions
+            );
+
+
+        const ursPercentage =
+            calculatePercentage(
+                urs,
+                totalOnions
+            );
+
+
+        const rejectedPercentage =
+            calculatePercentage(
+                rejected,
+                totalOnions
+            );
+
+
+        // ==========================================
+        // INSPECTION RESULT HTML
         // ==========================================
 
         let html = `
 
-            <div class="analysis-result">
-
-                <h2>
-                    Inspection Result
-                </h2>
+            <div class="inspection-result">
 
 
-                <div class="result-summary">
+                <!-- HEADER -->
 
+                <div class="result-header">
 
-                    <div>
-
-                        <strong>
-                            Total Onions
-                        </strong>
-
-                        <span>
-                            ${data.total_onions ?? 0}
-                        </span>
-
-                    </div>
-
+                    <button
+                        onclick="document.getElementById('result').innerHTML=''"
+                    >
+                        ←
+                    </button>
 
                     <div>
 
-                        <strong>
-                            Grade A
-                        </strong>
+                        <h2>
+                            Inspection Result
+                        </h2>
 
-                        <span>
-                            ${summary.grade_a ?? 0}
-                        </span>
-
-                    </div>
-
-
-                    <div>
-
-                        <strong>
-                            URS
-                        </strong>
-
-                        <span>
-                            ${summary.grade_urs ?? 0}
-                        </span>
+                        <p>
+                            ${totalOnions} onions analyzed
+                        </p>
 
                     </div>
 
-
-                    <div>
-
-                        <strong>
-                            Rejected
-                        </strong>
-
-                        <span>
-                            ${summary.rejected ?? 0}
-                        </span>
-
-                    </div>
-
-
-                    <div>
-
-                        <strong>
-                            Rejected %
-                        </strong>
-
-                        <span>
-                            ${summary.rejected_percentage ?? 0}%
-                        </span>
-
-                    </div>
-
+                    <button
+                        onclick="downloadResultPDF()"
+                    >
+                        📄
+                    </button>
 
                 </div>
 
 
-                <h3>
-                    Onion Details
-                </h3>
+                <!-- VISUAL INSPECTION -->
+
+                <div class="result-card visual-inspection">
+
+                    <h2>
+                        AI Visual Inspection
+                    </h2>
+
+                    <p>
+                        Tap an onion to view its detailed result
+                    </p>
+
+
+                    <div class="inspection-image-container">
+
+                        <canvas
+                            id="inspectionCanvas"
+                        ></canvas>
+
+                    </div>
+
+
+                    <!-- LEGEND -->
+
+                    <div class="quality-legend">
+
+                        <span>
+
+                            <span
+                                class="legend-dot grade-a-dot"
+                            ></span>
+
+                            Grade A
+
+                        </span>
+
+
+                        <span>
+
+                            <span
+                                class="legend-dot urs-dot"
+                            ></span>
+
+                            URS
+
+                        </span>
+
+
+                        <span>
+
+                            <span
+                                class="legend-dot rejected-dot"
+                            ></span>
+
+                            Reject
+
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <!-- DONUT / QUALITY -->
+
+                <div class="result-card">
+
+                    <h2>
+                        Quality Overview
+                    </h2>
+
+
+                    <div class="result-donut">
+
+                        <div
+                            class="donut-center"
+                        >
+
+                            ${
+                                gradeAPercentage.toFixed(0)
+                            }%
+
+                            <small>
+                                Good
+                            </small>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="result-stats">
+
+                        <div class="result-stat">
+
+                            <strong>
+                                ${totalOnions}
+                            </strong>
+
+                            <span>
+                                Total Onions
+                            </span>
+
+                            <small>
+                                100%
+                            </small>
+
+                        </div>
+
+
+                        <div class="result-stat">
+
+                            <strong>
+                                ${gradeA}
+                            </strong>
+
+                            <span>
+                                Grade A
+                            </span>
+
+                            <small>
+                                ${gradeAPercentage.toFixed(0)}%
+                            </small>
+
+                        </div>
+
+
+                        <div class="result-stat">
+
+                            <strong>
+                                ${urs}
+                            </strong>
+
+                            <span>
+                                Grade URS
+                            </span>
+
+                            <small>
+                                ${ursPercentage.toFixed(0)}%
+                            </small>
+
+                        </div>
+
+
+                        <div class="result-stat">
+
+                            <strong>
+                                ${rejected}
+                            </strong>
+
+                            <span>
+                                Reject
+                            </span>
+
+                            <small>
+                                ${rejectedPercentage.toFixed(0)}%
+                            </small>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- INDIVIDUAL ONION DETAILS -->
+
+                <div class="result-card">
+
+                    <h2>
+                        Individual Onion Details
+                    </h2>
 
         `;
 
@@ -895,18 +1038,64 @@ async function analyzeImage() {
                 const size =
                     onion.size || {};
 
+
                 const defects =
                     onion.defects || [];
 
 
+                const defectNames =
+                    defects.map(
+                        defect =>
+                            typeof defect === "string"
+                                ? defect
+                                : defect.name
+                    );
+
+
+                const cropUrl =
+                    onion.crop_url?.startsWith("http")
+                        ? onion.crop_url
+                        : API_BASE_URL + onion.crop_url;
+
+
                 html += `
 
-                    <div class="onion-result">
+                    <div class="individual-onion">
 
-                        <h3>
-                            Onion ${index + 1}
-                        </h3>
+                        <div class="onion-heading">
 
+                            <h3>
+                                Onion ${index + 1}
+                            </h3>
+
+                            <span class="onion-grade">
+
+                                ${
+                                    onion.grade ||
+                                    "N/A"
+                                }
+
+                            </span>
+
+                        </div>
+
+
+                        <!-- CROP IMAGE -->
+
+                        ${
+                            onion.crop_url
+                                ? `
+                                    <img
+                                        src="${cropUrl}"
+                                        class="onion-result-image"
+                                        alt="Onion ${index + 1}"
+                                    >
+                                  `
+                                : ""
+                        }
+
+
+                        <!-- CLASSIFICATION -->
 
                         <p>
 
@@ -922,75 +1111,7 @@ async function analyzeImage() {
                         </p>
 
 
-                        <p>
-
-                            <strong>
-                                Grade:
-                            </strong>
-
-                            ${
-                                onion.grade ||
-                                "N/A"
-                            }
-
-                        </p>
-
-
-                        <p>
-
-                            <strong>
-                                Diameter:
-                            </strong>
-
-                            ${
-                                size.diameter_mm ??
-                                "N/A"
-                            } mm
-
-                        </p>
-
-
-                        <p>
-
-                            <strong>
-                                Width:
-                            </strong>
-
-                            ${
-                                size.width_mm ??
-                                "N/A"
-                            } mm
-
-                        </p>
-
-
-                        <p>
-
-                            <strong>
-                                Height:
-                            </strong>
-
-                            ${
-                                size.height_mm ??
-                                "N/A"
-                            } mm
-
-                        </p>
-
-
-                        <p>
-
-                            <strong>
-                                Grade Reason:
-                            </strong>
-
-                            ${
-                                onion.grade_reason ||
-                                "N/A"
-                            }
-
-                        </p>
-
+                        <!-- DEFECTS -->
 
                         <p>
 
@@ -999,28 +1120,98 @@ async function analyzeImage() {
                             </strong>
 
                             ${
-                                defects.length > 0
-                                    ? defects.join(", ")
+                                defectNames.length > 0
+                                    ? defectNames.join(", ")
                                     : "No defect"
                             }
 
                         </p>
 
 
+                        <!-- SIZE -->
+
+                        <div class="onion-measurements">
+
+                            <div>
+
+                                <strong>
+                                    Diameter
+                                </strong>
+
+                                <span>
+                                    ${
+                                        size.diameter_mm ??
+                                        "N/A"
+                                    } mm
+                                </span>
+
+                            </div>
+
+
+                            <div>
+
+                                <strong>
+                                    Width
+                                </strong>
+
+                                <span>
+                                    ${
+                                        size.width_mm ??
+                                        "N/A"
+                                    } mm
+                                </span>
+
+                            </div>
+
+
+                            <div>
+
+                                <strong>
+                                    Height
+                                </strong>
+
+                                <span>
+                                    ${
+                                        size.height_mm ??
+                                        "N/A"
+                                    } mm
+                                </span>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- GRADE REASON -->
+
+                        <div class="grade-reason">
+
+                            <strong>
+                                Why this grade?
+                            </strong>
+
+                            <p style="font-size: 30px;">
+                                ${
+                                    onion.grade_reason ||
+                                    "N/A"
+                                }
+                            </p>
+
+                        </div>
+
+
+                        <!-- PROBABILITIES -->
+
                         <details>
 
                             <summary>
-                                Probabilities
+                                View probabilities
                             </summary>
 
                             <div>
 
                 `;
 
-
-                // ==========================================
-                // DEFECT PROBABILITIES
-                // ==========================================
 
                 const probabilities =
                     onion.probabilities || {};
@@ -1058,7 +1249,6 @@ async function analyzeImage() {
 
                         </details>
 
-
                     </div>
 
                 `;
@@ -1068,17 +1258,23 @@ async function analyzeImage() {
 
 
         // ==========================================
-        // DOWNLOAD PDF BUTTON
+        // CLOSE RESULT
         // ==========================================
 
         html += `
 
-            <button
-                class="download-pdf-btn"
-                onclick="downloadResultPDF()"
-            >
-                📄 Download Result as PDF
-            </button>
+                </div>
+
+
+                <!-- DOWNLOAD PDF -->
+
+                <button
+                    class="download-pdf-btn"
+                    onclick="downloadResultPDF()"
+                >
+                    📄 Download Result as PDF
+                </button>
+
 
             </div>
 
@@ -1086,11 +1282,21 @@ async function analyzeImage() {
 
 
         // ==========================================
-        // SHOW REAL RESULT
+        // SHOW RESULT
         // ==========================================
 
         result.innerHTML =
             html;
+
+
+        // ==========================================
+        // DRAW ONION IMAGE + OUTLINES
+        // ==========================================
+
+        drawInspectionImage(
+            originalImageURL,
+            onions
+        );
 
 
     } catch (error) {
@@ -1110,8 +1316,10 @@ async function analyzeImage() {
                 </h3>
 
                 <p>
-                    ${error.message ||
-                    "Unable to connect to the PyazLens server."}
+                    ${
+                        error.message ||
+                        "Unable to connect to the PyazLens server."
+                    }
                 </p>
 
             </div>
@@ -1129,243 +1337,882 @@ async function analyzeImage() {
 
 function downloadResultPDF() {
 
-    const result =
-        document.getElementById("result");
+    const result = document.getElementById("result");
 
-
-    if (
-        !result ||
-        !result.innerHTML.trim()
-    ) {
-
-        alert(
-            "No inspection result available."
-        );
-
+    if (!result || !result.innerHTML.trim()) {
+        alert("No inspection result available.");
         return;
     }
 
-
-    const printWindow =
-        window.open(
-            "",
-            "_blank"
-        );
-
+    const printWindow = window.open("", "_blank");
 
     if (!printWindow) {
-
-        alert(
-            "Please allow pop-ups to download the PDF."
-        );
-
+        alert("Please allow pop-ups to download the PDF.");
         return;
     }
+
+    const clonedResult = result.cloneNode(true);
+    /* Copy donut color into PDF */
+    const originalDonut = result.querySelector(".result-donut");
+    const clonedDonut = clonedResult.querySelector(".result-donut");
+
+    if (originalDonut && clonedDonut) {
+
+    clonedDonut.style.background =
+        getComputedStyle(originalDonut).backgroundImage;
+
+    clonedDonut.style.backgroundColor =
+        getComputedStyle(originalDonut).backgroundColor;
+
+    clonedDonut.style.borderRadius = "50%";
+
+    clonedDonut.style.clipPath =
+        "circle(50% at 50% 50%)";
+}
+    /*
+    ==========================================
+    REMOVE BLANK CANVAS
+    ==========================================
+    */
+
+    const canvases = clonedResult.querySelectorAll("canvas");
+
+    canvases.forEach(canvas => {
+
+        if (latestInspectionImageData) {
+
+            const img = document.createElement("img");
+
+            img.src = latestInspectionImageData;
+
+            img.className = "pdf-main-inspection-image";
+
+            canvas.replaceWith(img);
+
+        } else {
+
+            canvas.remove();
+
+        }
+
+    });
 
 
     printWindow.document.write(`
 
-        <!DOCTYPE html>
+<!DOCTYPE html>
 
-        <html>
+<html>
 
-        <head>
+<head>
 
-            <title>
-                PyazLens Inspection Report
-            </title>
+<title>PyazLens Inspection Report</title>
+
+<style>
+
+* {
+    box-sizing: border-box;
+}
+
+@page {
+    size: A4;
+    margin: 12mm;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    background: white;
+    color: #333;
+    font-size: 11px;
+}
 
 
-            <style>
-                .pdf-header {
+/* ==========================================
+   HEADER
+========================================== */
+
+.pdf-header {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
+    gap: 10px;
+    padding-bottom: 12px;
+    border-bottom: 3px solid #55106d;
+    margin-bottom: 16px;
 }
 
 .pdf-header img {
-    width: 38px !important;
-    height: 38px !important;
-    max-width: 38px !important;
-    max-height: 38px !important;
+    width: 42px !important;
+    height: 42px !important;
     object-fit: contain;
 }
 
 .pdf-header h1 {
     margin: 0;
-    font-size: 28px;
-    font-weight: 700;
+    color: #55106d;
+    font-size: 25px;
 }
 
-                body {
 
-                    font-family:
-                        Arial,
-                        sans-serif;
+/* ==========================================
+   TITLE
+========================================== */
 
-                    padding: 30px;
+.pdf-title {
+    margin-bottom: 18px;
+}
 
-                    color: #333;
+.pdf-title h2 {
+    margin: 0;
+    color: #24102f;
+    font-size: 20px;
+}
 
-                }
+.pdf-title p {
+    color: #777;
+    font-size: 10px;
+    margin-top: 4px;
+}
 
 
-                h1,
-                h2,
-                h3 {
+/* ==========================================
+   RESULT
+========================================== */
 
-                    color: #4B145F;
+.inspection-result {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+}
 
-                }
+.result-card {
+    background: white !important;
+    border: 1px solid #e3dbe8 !important;
+    border-radius: 10px !important;
+    padding: 15px !important;
+    margin-bottom: 13px !important;
+    box-shadow: none !important;
 
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+}
 
-                .analysis-result {
+.result-card h3 {
+    color: #55106d !important;
+    font-size: 16px !important;
+    margin-bottom: 5px !important;
+}
 
-                    max-width: 900px;
+.result-card > p {
+    color: #777 !important;
+    font-size: 10px !important;
+}
 
-                    margin: auto;
 
-                }
+/* ==========================================
+   ACTUAL INSPECTION IMAGE
+========================================== */
 
+.inspection-image-container {
+    width: 100% !important;
+    max-width: 620px !important;
 
-                .result-summary {
+    margin: 12px auto !important;
+    padding: 7px !important;
 
-                    display: grid;
+    background: #faf8fb !important;
 
-                    grid-template-columns:
-                        repeat(5, 1fr);
+    border: 1px solid #ddd !important;
 
-                    gap: 10px;
+    border-radius: 8px !important;
 
-                    margin: 20px 0;
+    text-align: center !important;
+}
 
-                }
 
+/*
+   THIS IS THE IMPORTANT FIX
+*/
 
-                .result-summary > div {
+.pdf-main-inspection-image {
 
-                    padding: 15px;
+    display: block !important;
 
-                    border: 1px solid #ddd;
+    width: auto !important;
 
-                    border-radius: 10px;
+    max-width: 100% !important;
 
-                    text-align: center;
+    height: 330px !important;
 
-                }
+    max-height: 330px !important;
 
+    object-fit: contain !important;
 
-                .result-summary strong {
+    margin: 0 auto !important;
 
-                    display: block;
+    border-radius: 6px !important;
 
-                    font-size: 12px;
+}
 
-                    color: #666;
 
-                }
+/* ==========================================
+   LEGEND
+========================================== */
 
+.quality-legend {
 
-                .result-summary span {
+    display: flex !important;
 
-                    display: block;
+    justify-content: center !important;
 
-                    margin-top: 8px;
+    gap: 25px !important;
 
-                    font-size: 20px;
+    margin: 9px 0 !important;
 
-                    font-weight: bold;
+    font-size: 10px !important;
 
-                    color: #4B145F;
+}
 
-                }
 
+/* ==========================================
+   PDF QUALITY DONUT — FORCE CIRCLE
+========================================== */
 
-                .onion-result {
+.result-donut {
+    width: 145px !important;
+    height: 145px !important;
 
-                    margin: 15px 0;
+    min-width: 145px !important;
+    min-height: 145px !important;
 
-                    padding: 18px;
+    max-width: 145px !important;
+    max-height: 145px !important;
 
-                    border: 1px solid #ddd;
+    display: block !important;
 
-                    border-radius: 10px;
+    position: relative !important;
 
-                    page-break-inside: avoid;
+    margin: 15px auto !important;
 
-                }
+    padding: 0 !important;
 
+    border-radius: 50% !important;
 
-                p {
+    clip-path: circle(50% at 50% 50%) !important;
 
-                    line-height: 1.5;
+    overflow: hidden !important;
 
-                }
+    aspect-ratio: 1 / 1 !important;
 
+    flex-shrink: 0 !important;
 
-                details {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+}
 
-                    margin-top: 10px;
 
-                }
+/* White center */
 
+.result-donut::before {
+    content: "" !important;
 
-                button {
+    position: absolute !important;
 
-                    display: none;
+    width: 90px !important;
+    height: 90px !important;
 
-                }
+    left: 50% !important;
+    top: 50% !important;
 
-            </style>
+    transform: translate(-50%, -50%) !important;
 
-        </head>
+    background: #ffffff !important;
 
+    border-radius: 50% !important;
 
-        <body>
+    z-index: 5 !important;
 
-            <div class="pdf-header">
-                <img src="image/logo.png" alt="PyazLens Logo">
-                <h1>PyazLens</h1>
-            </div>  
+    display: block !important;
+}
 
-            <h2>
-                AI Onion Quality Inspection Report
-            </h2>
 
+/* Center percentage */
 
-            ${result.innerHTML}
+.result-donut .donut-center {
+    position: absolute !important;
 
+    width: 90px !important;
+    height: 90px !important;
 
-        </body>
+    left: 50% !important;
+    top: 50% !important;
 
-        </html>
+    transform: translate(-50%, -50%) !important;
+
+    display: flex !important;
+
+    flex-direction: column !important;
+
+    justify-content: center !important;
+
+    align-items: center !important;
+
+    text-align: center !important;
+
+    z-index: 10 !important;
+
+    margin: 0 !important;
+
+    padding: 0 !important;
+}
+
+
+.result-donut .donut-center strong {
+    display: block !important;
+
+    font-size: 21px !important;
+
+    line-height: 1.1 !important;
+
+    margin: 0 !important;
+
+    color: #3f124e !important;
+}
+
+
+.result-donut .donut-center span {
+    display: block !important;
+
+    font-size: 9px !important;
+
+    line-height: 1.2 !important;
+
+    margin-top: 4px !important;
+
+    color: #777 !important;
+}
+
+/* ==========================================
+   STATISTICS
+========================================== */
+
+.result-stats {
+
+    display: grid !important;
+
+    grid-template-columns: repeat(4, 1fr) !important;
+
+    gap: 8px !important;
+
+}
+
+.result-stat {
+
+    padding: 11px 6px !important;
+
+    border-radius: 8px !important;
+
+    box-shadow: none !important;
+
+}
+
+.result-stat strong {
+
+    font-size: 20px !important;
+
+}
+
+
+/* ==========================================
+   GRADE COLORS
+========================================== */
+
+.grade-a,
+.onion-grade.grade-a {
+
+    color: #2F8F2F !important;
+
+    background: #EAF7E5 !important;
+
+    border: 1px solid #BFE5B5 !important;
+
+}
+
+.grade-urs,
+.onion-grade.grade-urs {
+
+    color: #A96800 !important;
+
+    background: #FFF4D6 !important;
+
+    border: 1px solid #F1D28A !important;
+
+}
+
+.rejected,
+.grade-reject,
+.onion-grade.rejected,
+.onion-grade.grade-reject {
+
+    color: #B52F2F !important;
+
+    background: #FDEAEA !important;
+
+    border: 1px solid #F0B5B5 !important;
+
+}
+
+
+/* ==========================================
+   DEFECTS
+========================================== */
+
+.defect-grid {
+
+    display: grid !important;
+
+    grid-template-columns: repeat(3, 1fr) !important;
+
+    gap: 7px !important;
+
+}
+
+.defect-grid div {
+
+    padding: 10px 6px !important;
+
+    border-radius: 7px !important;
+
+}
+
+
+/* ==========================================
+   MEASUREMENTS
+========================================== */
+
+.measurement-grid {
+
+    display: grid !important;
+
+    grid-template-columns: repeat(3, 1fr) !important;
+
+    gap: 7px !important;
+
+}
+
+.measurement-grid div {
+
+    padding: 11px 6px !important;
+
+    border-radius: 7px !important;
+
+}
+
+
+/* ==========================================
+   INDIVIDUAL ONIONS
+========================================== */
+
+.individual-onion {
+
+    display: block !important;
+
+    width: 100% !important;
+
+    padding: 12px !important;
+
+    margin-top: 10px !important;
+
+    border: 1px solid #e3dbe8 !important;
+
+    border-radius: 9px !important;
+
+    box-shadow: none !important;
+
+    page-break-inside: avoid !important;
+
+    break-inside: avoid !important;
+
+}
+
+
+.onion-heading {
+
+    display: flex !important;
+
+    justify-content: space-between !important;
+
+    align-items: center !important;
+
+    margin-bottom: 8px !important;
+
+}
+
+
+.onion-heading h4 {
+
+    font-size: 14px !important;
+
+    margin: 0 !important;
+
+}
+
+
+/* SMALL ONION IMAGE */
+
+.onion-result-image {
+
+    display: block !important;
+
+    width: 100px !important;
+
+    height: 100px !important;
+
+    max-width: 100px !important;
+
+    max-height: 100px !important;
+
+    object-fit: contain !important;
+
+    margin: 5px auto 9px !important;
+
+    padding: 3px !important;
+
+    border: 1px solid #ddd !important;
+
+    border-radius: 8px !important;
+
+}
+
+
+/* ==========================================
+   ONION DETAILS
+========================================== */
+
+.onion-measurements {
+
+    display: grid !important;
+
+    grid-template-columns: repeat(3, 1fr) !important;
+
+    gap: 5px !important;
+
+}
+
+.onion-measurements span {
+
+    padding: 6px 3px !important;
+
+    font-size: 9px !important;
+
+    text-align: center !important;
+
+}
+
+.grade-reason {
+
+    margin-top: 7px !important;
+
+    padding: 8px 10px !important;
+
+    font-size: 9px !important;
+
+}
+
+
+/* ==========================================
+   HIDE BUTTONS
+========================================== */
+
+button,
+.download-pdf-btn {
+
+    display: none !important;
+
+}
+
+
+/* ==========================================
+   PRINT COLORS
+========================================== */
+
+* {
+
+    -webkit-print-color-adjust: exact !important;
+
+    print-color-adjust: exact !important;
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<div class="pdf-header">
+
+    <img
+        src="image/logo.png"
+        alt="PyazLens Logo"
+    >
+
+    <h1>PyazLens</h1>
+
+</div>
+
+
+<div class="pdf-title">
+
+    <h2>
+        AI Onion Quality Inspection Report
+    </h2>
+
+    <p>
+        AI-powered onion quality analysis and inspection results
+    </p>
+
+</div>
+
+
+<div class="pdf-section-label">
+    <span class="label-icon">01</span>
+    AI Visual Inspection
+    <small>Scanned Onion Image</small>
+</div>
+
+${clonedResult.innerHTML}
+
+
+</body>
+
+</html>
 
     `);
-
 
     printWindow.document.close();
 
 
-    setTimeout(
-        () => {
+    /*
+    ==========================================
+    WAIT FOR IMAGES
+    ==========================================
+    */
 
-            printWindow.print();
+    setTimeout(() => {
 
-        },
-        500
-    );
+        const images =
+            printWindow.document.images;
+
+        Promise.all(
+
+            Array.from(images).map(img => {
+
+                if (img.complete) {
+                    return Promise.resolve();
+                }
+
+                return new Promise(resolve => {
+
+                    img.onload = resolve;
+
+                    img.onerror = resolve;
+
+                });
+
+            })
+
+        ).then(() => {
+
+            setTimeout(() => {
+
+                printWindow.focus();
+
+                printWindow.print();
+
+            }, 500);
+
+        });
+
+    }, 500);
 
 }
-// ==========================================
-// LOAD INSIGHTS WHEN PAGE OPENS
-// ==========================================
+async function drawInspectionImage(originalImageURL, onions) {
 
-window.addEventListener(
-    "DOMContentLoaded",
-    () => {
+    const canvas = document.getElementById("inspectionCanvas");
 
-        loadInsights();
-
+    if (!canvas) {
+        console.error("inspectionCanvas not found");
+        return;
     }
-);
+
+    const ctx = canvas.getContext("2d");
+
+    // If backend does not provide original image URL,
+    // use the image selected by the user.
+    if (!originalImageURL) {
+
+        const imageInput = document.getElementById("imageInput");
+
+        if (!imageInput || !imageInput.files[0]) {
+            console.error("Original image not found");
+            return;
+        }
+
+        originalImageURL =
+            URL.createObjectURL(imageInput.files[0]);
+    }
+
+    const img = new Image();
+
+    img.onload = function () {
+
+        const container =
+            document.querySelector(".inspection-image-container");
+
+        const maxWidth =
+            container ? container.clientWidth : 700;
+
+        const scale =
+            Math.min(1, maxWidth / img.width);
+
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+
+        ctx.drawImage(
+            img,
+            0,
+            0,
+            canvas.width,
+            canvas.height
+        );
+
+        if (!Array.isArray(onions)) {
+            return;
+        }
+
+        onions.forEach((onion, index) => {
+
+            let grade =
+                String(onion.grade || "").toUpperCase();
+
+            let color = "#D94A4A";
+
+            if (
+                grade.includes("GRADE A") ||
+                grade === "A"
+            ) {
+                color = "#73C943";
+            }
+            else if (
+                grade.includes("URS")
+            ) {
+                color = "#D49320";
+            }
+
+            const segmentation =
+                onion.segmentation;
+
+            if (!segmentation) {
+                return;
+            }
+
+            let points = [];
+
+            // Format: [[x,y], [x,y], ...]
+            if (
+                Array.isArray(segmentation) &&
+                Array.isArray(segmentation[0])
+            ) {
+                points = segmentation;
+            }
+
+            // Format: [{x,y}, {x,y}, ...]
+            else if (
+                Array.isArray(segmentation) &&
+                typeof segmentation[0] === "object"
+            ) {
+                points = segmentation.map(p => [
+                    p.x,
+                    p.y
+                ]);
+            }
+
+            if (points.length < 2) {
+                return;
+            }
+
+            ctx.beginPath();
+
+            points.forEach((point, i) => {
+
+                const x = point[0] * scale;
+                const y = point[1] * scale;
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+
+            });
+
+            ctx.closePath();
+
+            // Transparent fill
+            ctx.fillStyle = color + "33";
+            ctx.fill();
+
+            // Colored outline
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            // Onion number
+            const firstPoint = points[0];
+
+            const labelX =
+                firstPoint[0] * scale;
+
+            const labelY =
+                firstPoint[1] * scale;
+
+            ctx.beginPath();
+
+            ctx.arc(
+                labelX,
+                labelY,
+                16,
+                0,
+                Math.PI * 2
+            );
+
+            ctx.fillStyle = color;
+            ctx.fill();
+
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 14px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+
+            ctx.fillText(
+                index + 1,
+                labelX,
+                labelY
+            );
+
+        });
+
+    };
+
+    img.onerror = function () {
+        console.error(
+            "Could not load inspection image:",
+            originalImageURL
+        );
+    };
+
+    img.src = originalImageURL;
+}
