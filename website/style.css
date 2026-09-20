@@ -1401,3 +1401,1833 @@ footer p {
 .rejected {
     background: #D94A4A;
 }
+/* =========================================================
+   PYAZLENS INSPECTION RESULT
+   ========================================================= */
+
+.inspection-result {
+    width: 100%;
+    margin-top: 30px;
+}
+
+.result-header {
+    margin-bottom: 25px;
+}
+
+.result-header h2 {
+    margin: 0 0 5px;
+    font-size: 28px;
+}
+
+.result-header p {
+    margin: 0;
+    color: #777;
+    font-size: 16px;
+}
+
+
+/* =========================================================
+   RESULT CARD
+   ========================================================= */
+
+.result-card {
+    background: white;
+    border: 1px solid #eeeeee;
+    border-radius: 12px;
+    padding: 25px;
+    margin-bottom: 20px;
+}
+
+.result-card h3 {
+    margin-top: 0;
+    margin-bottom: 8px;
+}
+
+
+/* =========================================================
+   AI VISUAL INSPECTION
+   ========================================================= */
+
+.visual-inspection p {
+    color: #777;
+    margin-top: 0;
+}
+
+.inspection-image-container {
+    width: 100%;
+    margin-top: 20px;
+    text-align: center;
+    overflow: hidden;
+    border-radius: 12px;
+    background: #f5f5f5;
+}
+
+.inspection-image-container canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+
+/* =========================================================
+   IMAGE LEGEND
+   ========================================================= */
+
+.quality-legend {
+    display: flex;
+    justify-content: center;
+    gap: 25px;
+    flex-wrap: wrap;
+    margin-top: 15px;
+    font-size: 14px;
+}
+
+.legend-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 6px;
+}
+
+.grade-a-dot {
+    background: #73C943;
+}
+
+.urs-dot {
+    background: #D49320;
+}
+
+.rejected-dot {
+    background: #D94A4A;
+}
+
+
+/* =========================================================
+   DONUT
+   ========================================================= */
+
+/* ==========================================
+   PERFECT CIRCULAR QUALITY DONUT
+========================================== */
+
+.result-donut {
+    width: 145px !important;
+    height: 145px !important;
+
+    min-width: 145px !important;
+    min-height: 145px !important;
+
+    max-width: 145px !important;
+    max-height: 145px !important;
+
+    aspect-ratio: 1 / 1 !important;
+
+    border-radius: 50% !important;
+
+    margin: 15px auto !important;
+
+    position: relative !important;
+
+    overflow: hidden !important;
+
+    flex-shrink: 0 !important;
+
+    /* Keep the actual Grade A / URS / Reject colors */
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+}
+
+
+/* White center */
+
+.result-donut::before {
+    content: "" !important;
+
+    position: absolute !important;
+
+    width: 92px !important;
+    height: 92px !important;
+
+    top: 50% !important;
+    left: 50% !important;
+
+    transform: translate(-50%, -50%) !important;
+
+    border-radius: 50% !important;
+
+    background: white !important;
+
+    z-index: 1 !important;
+}
+
+
+/* Center text */
+
+.donut-center {
+    position: absolute !important;
+
+    top: 50% !important;
+    left: 50% !important;
+
+    transform: translate(-50%, -50%) !important;
+
+    z-index: 2 !important;
+
+    text-align: center !important;
+
+    width: 100% !important;
+}
+
+.donut-center strong {
+    font-size: 21px !important;
+}
+
+.donut-center span {
+    font-size: 9px !important;
+}
+
+.result-donut::before {
+    content: "";
+    position: absolute;
+    width: 125px;
+    height: 125px;
+    background: white;
+    border-radius: 50%;
+}
+
+.donut-center {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+}
+
+.donut-center strong {
+    font-size: 28px;
+}
+
+.donut-center span {
+    font-size: 13px;
+    color: #777;
+}
+
+
+/* =========================================================
+   RESULT STATS
+   ========================================================= */
+
+.result-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.result-stat {
+    background: white;
+    border: 1px solid #eeeeee;
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+}
+
+.result-stat strong {
+    display: block;
+    font-size: 28px;
+    margin-bottom: 5px;
+}
+
+.result-stat span {
+    display: block;
+    font-size: 14px;
+    color: #555;
+}
+
+.result-stat small {
+    display: block;
+    margin-top: 5px;
+    color: #777;
+}
+
+/* ==========================================
+   DEFECT SUMMARY — COMPACT
+========================================== */
+
+.defect-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 0 !important;
+
+    border: 1px solid #e4dce8 !important;
+    border-radius: 10px !important;
+
+    overflow: hidden !important;
+
+    margin-top: 10px !important;
+}
+
+.defect-grid div {
+    background: #ffffff !important;
+
+    border: none !important;
+    border-bottom: 1px solid #eee !important;
+
+    border-radius: 0 !important;
+
+    padding: 10px 12px !important;
+
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+
+    min-height: 38px !important;
+
+    box-shadow: none !important;
+}
+
+.defect-grid div:nth-child(3n+1),
+.defect-grid div:nth-child(3n+2) {
+    border-right: 1px solid #eee !important;
+}
+
+.defect-grid div:nth-last-child(-n+3) {
+    border-bottom: none !important;
+}
+
+.defect-grid strong {
+    color: #55106d !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
+}
+
+.defect-grid span {
+    color: #555 !important;
+    font-size: 9px !important;
+}
+/* =========================================================
+   ✨ PYAZLENS — FINAL RESULT DESIGN
+   ========================================================= */
+
+/* Main result area */
+.inspection-result {
+    max-width: 1050px;
+    margin: 35px auto 50px;
+}
+
+/* Result heading */
+.result-header {
+    padding: 5px 5px 22px;
+}
+
+.result-header h2 {
+    font-size: 32px;
+    font-weight: 750;
+    letter-spacing: -0.5px;
+    color: #24102f;
+    margin-bottom: 7px;
+}
+
+.result-header p {
+    color: #777;
+    font-size: 15px;
+}
+
+/* All result cards */
+.result-card {
+    background: #ffffff;
+    border: 1px solid #eee6f2;
+    border-radius: 18px;
+    padding: 28px;
+    margin-bottom: 22px;
+    box-shadow: 0 7px 25px rgba(75, 20, 95, 0.06);
+    transition: 0.25s ease;
+}
+
+.result-card:hover {
+    box-shadow: 0 12px 30px rgba(75, 20, 95, 0.09);
+}
+
+.result-card h3 {
+    color: #3f124e;
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 7px;
+}
+
+.result-card > p {
+    color: #777;
+    font-size: 14px;
+}
+
+/* =========================================================
+   AI IMAGE
+   ========================================================= */
+
+.inspection-image-container {
+    margin-top: 22px;
+    background: #f8f6f9;
+    border: 1px solid #eee5f1;
+    border-radius: 15px;
+    padding: 10px;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.7);
+}
+
+.inspection-image-container canvas {
+    border-radius: 10px;
+}
+
+/* Legend */
+.quality-legend {
+    margin-top: 18px;
+    gap: 30px;
+    color: #555;
+    font-size: 13px;
+}
+
+.legend-dot {
+    width: 11px;
+    height: 11px;
+    box-shadow: 0 0 0 3px rgba(0,0,0,0.03);
+}
+
+/* =========================================================
+   DONUT
+   ========================================================= */
+
+.result-donut {
+    width: 210px;
+    height: 210px;
+    margin: 28px auto;
+    box-shadow: 0 5px 25px rgba(75,20,95,0.08);
+}
+
+.result-donut::before {
+    width: 135px;
+    height: 135px;
+}
+
+.donut-center strong {
+    color: #3f124e;
+    font-size: 30px;
+    line-height: 1;
+}
+
+.donut-center span {
+    margin-top: 6px;
+    color: #888;
+}
+
+/* =========================================================
+   RESULT STAT CARDS
+   ========================================================= */
+
+.result-stats {
+    gap: 16px;
+}
+
+.result-stat {
+    position: relative;
+    overflow: hidden;
+    background: #fcfbfd;
+    border: 1px solid #eee5f1;
+    border-radius: 15px;
+    padding: 22px 15px;
+    transition: 0.25s ease;
+}
+
+.result-stat::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: #55106d;
+    opacity: 0.8;
+}
+
+.result-stat:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 22px rgba(75,20,95,0.08);
+}
+
+.result-stat strong {
+    color: #3f124e;
+    font-size: 30px;
+    font-weight: 750;
+}
+
+.result-stat span {
+    color: #444;
+    font-weight: 600;
+}
+
+.result-stat small {
+    color: #888;
+}
+
+/* =========================================================
+   DEFECT CARDS
+   ========================================================= */
+
+.defect-grid {
+    gap: 14px;
+}
+
+.defect-grid div {
+    background: #fbfafc;
+    border: 1px solid #eee7f1;
+    border-radius: 13px;
+    padding: 18px 10px;
+    transition: 0.25s ease;
+}
+
+.defect-grid div:hover {
+    transform: translateY(-3px);
+    background: #f8f3fa;
+    box-shadow: 0 6px 18px rgba(75,20,95,0.07);
+}
+
+.defect-grid strong {
+    color: #3f124e;
+    font-size: 24px;
+}
+
+.defect-grid span {
+    color: #666;
+    font-size: 13px;
+}
+
+/* =========================================================
+   MEASUREMENTS
+   ========================================================= */
+
+.measurement-note {
+    background: #f8f3fa;
+    border-radius: 9px;
+    padding: 10px 13px;
+    display: inline-block;
+    color: #5b3765;
+    font-size: 13px;
+}
+
+.measurement-grid {
+    gap: 14px;
+}
+
+.measurement-grid div {
+    background: #fbfafc;
+    border: 1px solid #eee7f1;
+    border-radius: 13px;
+    padding: 20px 10px;
+    transition: 0.25s ease;
+}
+
+.measurement-grid div:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 7px 18px rgba(75,20,95,0.07);
+}
+
+.measurement-grid strong {
+    color: #3f124e;
+    font-size: 23px;
+    font-weight: 750;
+}
+
+.measurement-grid span {
+    color: #777;
+}
+
+/* ==========================================
+   INDIVIDUAL ONION DETAILS
+========================================== */
+
+.individual-onion {
+
+    display: grid !important;
+
+    grid-template-columns: 150px 1fr !important;
+
+    column-gap: 18px !important;
+
+    align-items: center !important;
+
+    width: 100% !important;
+
+    min-height: 145px !important;
+
+    padding: 12px !important;
+
+    margin-top: 10px !important;
+
+    background: #faf9fb !important;
+
+    border: 1px solid #e3dbe8 !important;
+
+    border-radius: 10px !important;
+
+    box-shadow: none !important;
+
+    page-break-inside: avoid !important;
+
+    break-inside: avoid !important;
+}
+
+
+/* ==========================================
+   ONION IMAGE
+========================================== */
+
+.onion-result-image {
+
+    display: block !important;
+
+    width: 135px !important;
+
+    height: 135px !important;
+
+    max-width: 135px !important;
+
+    max-height: 135px !important;
+
+    object-fit: cover !important;
+
+    margin: 0 auto !important;
+
+    padding: 3px !important;
+
+    background: white !important;
+
+    border: 1px solid #ddd !important;
+
+    border-radius: 8px !important;
+}
+
+
+/* ==========================================
+   ONION INFORMATION
+========================================== */
+
+.onion-heading {
+
+    display: flex !important;
+
+    justify-content: space-between !important;
+
+    align-items: center !important;
+
+    margin-bottom: 7px !important;
+
+}
+
+.onion-heading h4 {
+
+    margin: 0 !important;
+
+    color: #55106d !important;
+
+    font-size: 14px !important;
+
+    font-weight: 700 !important;
+
+}
+
+
+/* Grade badge */
+
+.onion-grade {
+
+    padding: 4px 9px !important;
+
+    border-radius: 15px !important;
+
+    font-size: 9px !important;
+
+    font-weight: 700 !important;
+
+}
+
+
+/* ==========================================
+   ONION TEXT
+========================================== */
+
+.individual-onion p {
+
+    margin: 4px 0 !important;
+
+    font-size: 9px !important;
+
+    line-height: 1.35 !important;
+
+    color: #444 !important;
+
+}
+
+
+/* ==========================================
+   MEASUREMENTS
+========================================== */
+
+.onion-measurements {
+
+    display: flex !important;
+
+    gap: 12px !important;
+
+    margin: 5px 0 !important;
+
+}
+
+.onion-measurements span {
+
+    padding: 0 !important;
+
+    background: transparent !important;
+
+    border: none !important;
+
+    color: #444 !important;
+
+    font-size: 9px !important;
+
+    border-radius: 0 !important;
+
+}
+
+
+/* ==========================================
+   GRADE REASON
+========================================== */
+
+.grade-reason {
+
+    margin-top: 6px !important;
+
+    padding: 6px 9px !important;
+
+    background: #f3eef6 !important;
+
+    border-left: 3px solid #55106d !important;
+
+    border-radius: 5px !important;
+
+    color: #555 !important;
+
+    font-size: 9px !important;
+
+    line-height: 1.35 !important;
+}
+
+/* =========================================================
+   DOWNLOAD PDF BUTTON
+   ========================================================= */
+
+.download-pdf-btn {
+    min-width: 175px;
+    padding: 13px 25px;
+    margin: 28px auto 5px;
+    border-radius: 10px;
+    background: #55106d;
+    box-shadow: 0 6px 16px rgba(85,16,109,0.18);
+    font-size: 14px;
+}
+
+.download-pdf-btn:hover {
+    background: #421052;
+    transform: translateY(-2px);
+    box-shadow: 0 9px 22px rgba(85,16,109,0.24);
+}
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 600px) {
+
+    .inspection-result {
+        margin-top: 20px;
+    }
+
+    .result-header {
+        padding-left: 2px;
+    }
+
+    .result-header h2 {
+        font-size: 25px;
+    }
+
+    .result-card {
+        padding: 19px;
+        border-radius: 15px;
+        margin-bottom: 16px;
+    }
+
+    .result-card h3 {
+        font-size: 18px;
+    }
+
+    .inspection-image-container {
+        padding: 6px;
+        border-radius: 12px;
+    }
+
+    .result-donut {
+        width: 175px;
+        height: 175px;
+    }
+
+    .result-donut::before {
+        width: 112px;
+        height: 112px;
+    }
+
+    .donut-center strong {
+        font-size: 25px;
+    }
+
+    .result-stats {
+        gap: 10px;
+    }
+
+    .result-stat {
+        padding: 17px 8px;
+        border-radius: 12px;
+    }
+
+    .result-stat strong {
+        font-size: 25px;
+    }
+
+    .defect-grid {
+        gap: 9px;
+    }
+
+    .defect-grid div {
+        padding: 15px 7px;
+    }
+
+    .measurement-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+    }
+
+    .measurement-grid div {
+        padding: 15px 5px;
+    }
+
+    .measurement-grid strong {
+        font-size: 17px;
+    }
+
+    .measurement-grid span {
+        font-size: 11px;
+    }
+
+    .individual-onion {
+        padding: 15px;
+    }
+
+    .onion-result-image {
+        width: 165px;
+        height: 165px;
+    }
+
+    .onion-measurements {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .onion-measurements span {
+        font-size: 11px;
+        padding: 9px 4px;
+    }
+}
+/* =========================================================
+   🌈 GRADE COLORS — PYAZLENS
+   ========================================================= */
+
+/* Grade A */
+.grade-a,
+.onion-grade.grade-a {
+    color: #2F8F2F !important;
+    background: #EAF7E5 !important;
+    border: 1px solid #BFE5B5 !important;
+}
+
+.result-stat.grade-a {
+    border-top: 4px solid #73C943;
+}
+
+.result-stat.grade-a strong {
+    color: #2F8F2F;
+}
+
+/* URS */
+.grade-urs,
+.onion-grade.grade-urs {
+    color: #A96800 !important;
+    background: #FFF4D6 !important;
+    border: 1px solid #F1D28A !important;
+}
+
+.result-stat.grade-urs {
+    border-top: 4px solid #D49320;
+}
+
+.result-stat.grade-urs strong {
+    color: #A96800;
+}
+
+/* Reject */
+.rejected,
+.grade-reject,
+.onion-grade.rejected,
+.onion-grade.grade-reject {
+    color: #B52F2F !important;
+    background: #FDEAEA !important;
+    border: 1px solid #F0B5B5 !important;
+}
+
+.result-stat.rejected,
+.result-stat.grade-reject {
+    border-top: 4px solid #D94A4A;
+}
+
+.result-stat.rejected strong,
+.result-stat.grade-reject strong {
+    color: #B52F2F;
+}
+/* =========================================
+   PDF PAGE FLOW FIX
+========================================= */
+
+.result-card {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+}
+
+.individual-onion {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+}
+
+/* Don't create unnecessary empty pages */
+.result-card:last-child {
+    page-break-after: auto !important;
+}
+
+/* Keep heading with its content */
+.result-card h3 {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+}
+
+/* Images must remain visible while printing */
+img,
+canvas {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+}
+
+/* Prevent image from being split */
+.onion-result-image,
+.inspection-image-container {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+}
+/* =========================================
+   PDF PAGE FLOW FIX
+========================================= */
+
+.result-card {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+}
+
+.individual-onion {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+}
+
+/* Don't create unnecessary empty pages */
+.result-card:last-child {
+    page-break-after: auto !important;
+}
+
+/* Keep heading with its content */
+.result-card h3 {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+}
+
+/* Images must remain visible while printing */
+img,
+canvas {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+}
+
+/* Prevent image from being split */
+.onion-result-image,
+.inspection-image-container {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+}
+/* ==========================================
+   EASY-TO-IDENTIFY SECTION LABELS
+========================================== */
+
+.result-card h3 {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+}
+
+.result-card h3::before {
+    content: "";
+    display: inline-block;
+    width: 4px;
+    height: 18px;
+    background: #55106d;
+    border-radius: 4px;
+}
+
+
+/* AI IMAGE LABEL */
+
+.inspection-image-container::before {
+    content: "SCANNED ONION IMAGE";
+    display: block;
+    text-align: left;
+    color: #777;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    margin: 2px 5px 6px;
+}
+
+
+/* QUALITY OVERVIEW */
+
+.result-donut {
+    margin: 10px auto !important;
+}
+
+
+/* Reduce huge empty Quality Overview box */
+
+.result-card:has(.result-donut) {
+    min-height: 0 !important;
+    height: auto !important;
+    padding-bottom: 12px !important;
+}
+
+
+/* Make stats closer to donut */
+
+.result-stats {
+    margin-top: 8px !important;
+}
+
+
+/* Individual onion section */
+
+.individual-onion::before {
+    content: "ONION INSPECTION";
+    display: block;
+    color: #999;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.7px;
+    margin-bottom: 5px;
+}
+/* ==========================================
+   QUALITY DONUT COLORS
+========================================== */
+
+.result-donut {
+    background: conic-gradient(
+        #73C943 0deg 0deg,
+        #D49320 0deg 240deg,
+        #D94A4A 240deg 360deg
+    ) !important;
+}
+
+.result-donut::before {
+    background: #ffffff !important;
+}
+.result-donut::before {
+    background: #ffffff !important;
+}
+/* ==========================================
+   COMPACT QUALITY OVERVIEW
+========================================== */
+
+.result-card:has(.result-donut) {
+    padding-top: 14px !important;
+    padding-bottom: 12px !important;
+    min-height: 0 !important;
+    height: auto !important;
+}
+
+.result-card:has(.result-donut) .result-donut {
+    margin-top: 8px !important;
+    margin-bottom: 10px !important;
+}
+
+.result-card:has(.result-donut) .result-stats {
+    margin-top: 5px !important;
+}
+/* =========================================================
+   PYAZLENS - CLEAN INDIVIDUAL ONION DETAILS
+========================================================= */
+
+.individual-onion {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    grid-template-rows: auto 1fr;
+
+    column-gap: 24px;
+
+    padding: 22px;
+    margin-top: 16px;
+
+    background: #ffffff;
+    border: 1px solid #e5dbea;
+    border-radius: 16px;
+
+    min-height: 220px;
+
+    box-shadow: 0 5px 18px rgba(75, 20, 95, 0.06);
+}
+
+
+/* =========================================================
+   ONION HEADING
+========================================================= */
+
+.individual-onion .onion-heading {
+    grid-column: 1 / -1;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    margin-bottom: 18px;
+}
+
+.individual-onion .onion-heading h4 {
+    margin: 0;
+
+    color: #4B145F;
+
+    font-size: 22px;
+    font-weight: 700;
+}
+
+.individual-onion .onion-heading h4::before {
+    content: "";
+    display: inline-block;
+
+    width: 5px;
+    height: 23px;
+
+    margin-right: 10px;
+
+    vertical-align: -3px;
+
+    background: #55106d;
+    border-radius: 5px;
+}
+
+
+/* =========================================================
+   GRADE BADGE
+========================================================= */
+
+.individual-onion .onion-grade {
+    padding: 7px 14px;
+
+    border-radius: 20px;
+
+    font-size: 13px;
+    font-weight: 700;
+}
+
+
+/* =========================================================
+   ONION IMAGE
+========================================================= */
+
+.individual-onion .onion-result-image {
+    width: 165px;
+    height: 165px;
+
+    object-fit: cover;
+
+    padding: 4px;
+
+    background: #faf9fb;
+
+    border: 1px solid #ddd;
+
+    border-radius: 12px;
+
+    align-self: start;
+}
+
+
+/* =========================================================
+   INFORMATION AREA
+========================================================= */
+
+.individual-onion > div:not(.onion-heading) {
+    min-width: 0;
+}
+
+
+/* Classification */
+
+.individual-onion p {
+    margin: 8px 0;
+
+    color: #444;
+
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.individual-onion p strong {
+    color: #3f124e;
+}
+
+
+/* =========================================================
+   MEASUREMENTS
+========================================================= */
+
+.individual-onion .onion-measurements {
+    display: flex;
+
+    flex-wrap: wrap;
+
+    gap: 10px;
+
+    margin: 14px 0;
+}
+
+.individual-onion .onion-measurements span {
+    padding: 9px 12px;
+
+    background: #f7f3f9;
+
+    border: 1px solid #eadff0;
+
+    border-radius: 8px;
+
+    color: #444;
+
+    font-size: 13px;
+    font-weight: 500;
+}
+
+
+/* =========================================================
+   DEFECTS
+========================================================= */
+
+.individual-onion .defects {
+    margin-top: 8px;
+
+    color: #444;
+
+    font-size: 14px;
+}
+
+.individual-onion .defects strong {
+    color: #4B145F;
+}
+
+
+/* =========================================================
+   GRADE REASON
+========================================================= */
+
+.individual-onion .grade-reason {
+    margin-top: 12px;
+
+    padding: 11px 14px;
+
+    background: #f7f2f9;
+
+    border-left: 4px solid #55106d;
+
+    border-radius: 8px;
+
+    color: #555;
+
+    font-size: 13px;
+
+    line-height: 1.45;
+}
+
+
+/* =========================================================
+   VIEW PROBABILITIES
+========================================================= */
+
+.individual-onion details {
+    margin-top: 12px;
+}
+
+.individual-onion details summary {
+    color: #55106d;
+
+    font-size: 14px;
+    font-weight: 600;
+
+    cursor: pointer;
+}
+
+/* =========================================================
+   PYAZLENS — INDIVIDUAL ONION CARD
+   CLEAN 2-COLUMN LAYOUT
+========================================================= */
+
+.individual-onion {
+    display: grid !important;
+
+    grid-template-columns: 165px 1fr !important;
+    grid-template-rows: auto auto auto auto auto auto !important;
+
+    column-gap: 22px !important;
+
+    padding: 20px !important;
+    margin: 16px 0 !important;
+
+    background: #ffffff !important;
+
+    border: 1px solid #e3d9e8 !important;
+    border-radius: 15px !important;
+
+    min-height: 0 !important;
+    height: auto !important;
+
+    box-shadow: 0 5px 18px rgba(75, 20, 95, 0.06) !important;
+}
+
+
+/* =========================================================
+   HEADER
+========================================================= */
+
+.individual-onion .onion-heading {
+    grid-column: 1 / -1 !important;
+
+    display: flex !important;
+
+    align-items: center !important;
+    justify-content: space-between !important;
+
+    margin: 0 0 16px 0 !important;
+    padding: 0 !important;
+}
+
+.individual-onion .onion-heading h4 {
+    margin: 0 !important;
+
+    color: #4B145F !important;
+
+    font-size: 24px !important;
+    font-weight: 700 !important;
+}
+
+.individual-onion .onion-heading h4::before {
+    content: "" !important;
+
+    display: inline-block !important;
+
+    width: 5px !important;
+    height: 25px !important;
+
+    margin-right: 9px !important;
+
+    vertical-align: -3px !important;
+
+    background: #55106d !important;
+
+    border-radius: 4px !important;
+}
+
+
+/* =========================================================
+   GRADE
+========================================================= */
+
+.individual-onion .onion-grade {
+    padding: 7px 13px !important;
+
+    border-radius: 20px !important;
+
+    font-size: 13px !important;
+    font-weight: 700 !important;
+}
+
+
+/* =========================================================
+   ONION IMAGE
+========================================================= */
+
+.individual-onion .onion-result-image {
+    grid-column: 1 !important;
+    grid-row: 2 / 7 !important;
+
+    width: 150px !important;
+    height: 150px !important;
+
+    max-width: 150px !important;
+    max-height: 150px !important;
+
+    object-fit: cover !important;
+
+    padding: 4px !important;
+
+    background: #faf9fb !important;
+
+    border: 1px solid #ddd !important;
+
+    border-radius: 11px !important;
+
+    align-self: start !important;
+
+    margin: 0 auto !important;
+}
+
+
+/* =========================================================
+   INFORMATION — RIGHT SIDE
+========================================================= */
+
+.individual-onion > p {
+    grid-column: 2 !important;
+
+    margin: 5px 0 !important;
+
+    color: #444 !important;
+
+    font-size: 14px !important;
+
+    line-height: 1.45 !important;
+}
+
+.individual-onion > p strong {
+    color: #3f124e !important;
+}
+
+
+/* Classification */
+
+.individual-onion > p:first-of-type {
+    margin-top: 0 !important;
+}
+
+
+/* =========================================================
+   DEFECTS
+========================================================= */
+
+.individual-onion .defects {
+    grid-column: 2 !important;
+
+    margin: 4px 0 7px !important;
+
+    color: #444 !important;
+
+    font-size: 14px !important;
+}
+
+.individual-onion .defects strong {
+    color: #4B145F !important;
+}
+
+
+/* =========================================================
+   MEASUREMENTS
+========================================================= */
+
+.individual-onion .onion-measurements {
+    grid-column: 2 !important;
+
+    display: flex !important;
+
+    flex-wrap: wrap !important;
+
+    gap: 10px !important;
+
+    margin: 5px 0 8px !important;
+}
+
+.individual-onion .onion-measurements span {
+    padding: 8px 11px !important;
+
+    background: #f7f3f9 !important;
+
+    border: 1px solid #e7ddea !important;
+
+    border-radius: 7px !important;
+
+    color: #444 !important;
+
+    font-size: 13px !important;
+
+    font-weight: 600 !important;
+}
+
+
+/* =========================================================
+   WHY THIS GRADE
+========================================================= */
+
+.individual-onion .grade-reason {
+    grid-column: 2 !important;
+
+    margin: 4px 0 7px !important;
+
+    padding: 9px 12px !important;
+
+    background: #f6f0f8 !important;
+
+    border-left: 4px solid #55106d !important;
+
+    border-radius: 7px !important;
+
+    color: #555 !important;
+
+    font-size: 13px !important;
+
+    line-height: 1.4 !important;
+}
+
+
+/* =========================================================
+   PROBABILITIES
+========================================================= */
+
+.individual-onion details {
+    grid-column: 2 !important;
+
+    margin: 4px 0 0 !important;
+}
+
+.individual-onion details summary {
+    color: #55106d !important;
+
+    font-size: 14px !important;
+
+    font-weight: 600 !important;
+
+    cursor: pointer !important;
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 600px) {
+
+    .individual-onion {
+        grid-template-columns: 115px 1fr !important;
+
+        column-gap: 14px !important;
+
+        padding: 14px !important;
+    }
+
+    .individual-onion .onion-result-image {
+        width: 105px !important;
+        height: 105px !important;
+        max-width: 105px !important;
+        max-height: 105px !important;
+    }
+
+    .individual-onion .onion-heading h4 {
+        font-size: 19px !important;
+    }
+
+    .individual-onion > p,
+    .individual-onion .defects {
+        font-size: 12px !important;
+    }
+
+    .individual-onion .onion-measurements span {
+        font-size: 11px !important;
+        padding: 6px 7px !important;
+    }
+
+    .individual-onion .grade-reason {
+        font-size: 11px !important;
+    }
+}
+/* =========================================================
+   PYAZLENS — REMOVE BLANK SPACE FROM INDIVIDUAL ONION
+========================================================= */
+
+.individual-onion {
+    display: grid !important;
+
+    grid-template-columns: 160px 1fr !important;
+
+    grid-template-rows: auto auto auto auto auto auto !important;
+
+    column-gap: 22px !important;
+
+    padding: 18px !important;
+    margin: 14px 0 !important;
+
+    min-height: 0 !important;
+    height: auto !important;
+
+    align-items: start !important;
+
+    background: #ffffff !important;
+    border: 1px solid #e3d9e8 !important;
+    border-radius: 14px !important;
+
+    box-shadow: 0 4px 15px rgba(75, 20, 95, 0.05) !important;
+}
+
+
+/* =========================
+   HEADER
+========================= */
+
+.individual-onion .onion-heading {
+    grid-column: 1 / -1 !important;
+    grid-row: 1 !important;
+
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+
+    margin: 0 0 12px 0 !important;
+    padding: 0 !important;
+}
+
+.individual-onion .onion-heading h4 {
+    margin: 0 !important;
+
+    font-size: 22px !important;
+    font-weight: 700 !important;
+
+    color: #4B145F !important;
+}
+
+
+/* Purple line before Onion number */
+
+.individual-onion .onion-heading h4::before {
+    content: "" !important;
+
+    display: inline-block !important;
+
+    width: 5px !important;
+    height: 23px !important;
+
+    margin-right: 8px !important;
+
+    vertical-align: -3px !important;
+
+    background: #55106d !important;
+    border-radius: 4px !important;
+}
+
+
+/* =========================
+   IMAGE
+========================= */
+
+.individual-onion .onion-result-image {
+    grid-column: 1 !important;
+    grid-row: 2 / 7 !important;
+
+    width: 145px !important;
+    height: 145px !important;
+
+    max-width: 145px !important;
+    max-height: 145px !important;
+
+    object-fit: cover !important;
+
+    margin: 0 auto !important;
+
+    padding: 4px !important;
+
+    border: 1px solid #ddd !important;
+    border-radius: 10px !important;
+
+    align-self: start !important;
+}
+
+
+/* =========================
+   RIGHT SIDE CONTENT
+========================= */
+
+.individual-onion > p {
+    grid-column: 2 !important;
+
+    margin: 3px 0 !important;
+
+    font-size: 14px !important;
+    line-height: 1.35 !important;
+
+    color: #444 !important;
+
+    align-self: start !important;
+}
+
+.individual-onion > p strong {
+    color: #3f124e !important;
+}
+
+
+/* Classification */
+
+.individual-onion > p:first-of-type {
+    margin-top: 0 !important;
+}
+
+
+/* =========================
+   DEFECTS
+========================= */
+
+.individual-onion .defects {
+    grid-column: 2 !important;
+
+    margin: 3px 0 6px !important;
+
+    font-size: 14px !important;
+    line-height: 1.35 !important;
+
+    color: #444 !important;
+}
+
+
+/* =========================
+   MEASUREMENTS
+========================= */
+
+.individual-onion .onion-measurements {
+    grid-column: 2 !important;
+
+    display: flex !important;
+    flex-wrap: wrap !important;
+
+    gap: 8px !important;
+
+    margin: 4px 0 6px !important;
+}
+
+.individual-onion .onion-measurements span {
+    padding: 7px 10px !important;
+
+    background: #f7f3f9 !important;
+
+    border: 1px solid #e7ddea !important;
+
+    border-radius: 7px !important;
+
+    font-size: 13px !important;
+
+    color: #444 !important;
+}
+
+
+/* =========================
+   WHY THIS GRADE
+========================= */
+
+.individual-onion .grade-reason {
+    grid-column: 2 !important;
+
+    margin: 3px 0 5px !important;
+
+    padding: 8px 11px !important;
+
+    background: #f6f0f8 !important;
+
+    border-left: 3px solid #55106d !important;
+
+    border-radius: 6px !important;
+
+    font-size: 13px !important;
+
+    line-height: 1.35 !important;
+
+    color: #555 !important;
+}
+
+
+/* =========================
+   PROBABILITIES
+========================= */
+
+.individual-onion details {
+    grid-column: 2 !important;
+
+    margin: 2px 0 0 !important;
+}
+
+.individual-onion details summary {
+    font-size: 14px !important;
+
+    color: #55106d !important;
+
+    font-weight: 600 !important;
+}
+
+
+/* =========================
+   MOBILE
+========================= */
+
+@media (max-width: 600px) {
+
+    .individual-onion {
+        grid-template-columns: 115px 1fr !important;
+
+        column-gap: 12px !important;
+
+        padding: 13px !important;
+    }
+
+    .individual-onion .onion-result-image {
+        width: 105px !important;
+        height: 105px !important;
+
+        max-width: 105px !important;
+        max-height: 105px !important;
+    }
+
+    .individual-onion .onion-heading h4 {
+        font-size: 19px !important;
+    }
+
+    .individual-onion > p,
+    .individual-onion .defects {
+        font-size: 12px !important;
+    }
+
+    .individual-onion .onion-measurements span {
+        font-size: 11px !important;
+        padding: 6px 7px !important;
+    }
+
+    .individual-onion .grade-reason {
+        font-size: 11px !important;
+    }
+}

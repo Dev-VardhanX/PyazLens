@@ -462,8 +462,8 @@ fun HistoryItemCard(
                             .crossfade(true)
                             .build(),
                         contentDescription = "Inspection batch image",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
+                        modifier = Modifier.padding(4.dp),
+                        contentScale = ContentScale.Fit
                     )
                 } else {
                     Text(

@@ -1824,6 +1824,7 @@ fun OnionInspectionViewer(
                 val request =
                     ImageRequest.Builder(context)
                         .data(imageUrl)
+                        .size(coil.size.Size.ORIGINAL)
                         .allowHardware(false)
                         .memoryCachePolicy(CachePolicy.DISABLED)
                         .diskCachePolicy(CachePolicy.DISABLED)
