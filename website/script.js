@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://152.67.10.2:8000";
+const API_BASE_URL = "/api/backend";
 let latestInspectionImageData = null;
 
 // ==========================================
