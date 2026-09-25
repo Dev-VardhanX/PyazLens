@@ -355,5 +355,5 @@ SIH26031/
 
 ## 👥 Authors & Acknowledgements
 
-- **Team PyazLens** — Developed for **Smart India Hackathon (SIH 2024)** under **Problem Statement SIH26031**.
+- **Team PyazLens** — Developed for **Smart India Hackathon (SIH 2026)** under **Problem Statement SIH26031**.
 - Special thanks to the Ministry of Consumer Affairs, Food & Public Distribution, and the agricultural research community for guidelines on APMC grading norms.
