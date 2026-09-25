@@ -77,3 +77,9 @@ PyazLens/.gradle-user/
 *.jks
 *.keystore
 backend/inspection_crops/
+
+# Presentations & Pitch Decks
+ppt/
+*.ppt
+*.pptx
+
